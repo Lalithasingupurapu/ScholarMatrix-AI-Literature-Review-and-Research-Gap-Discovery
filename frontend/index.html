@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LitAutoResearch — Autonomous Literature Review & Synthesis Engine</title>
+  <meta name="description" content="AI-Powered Systematic Literature Review Generator. Discovers research papers, builds citation networks, extracts literature matrices, synthesizes research gaps, and generates comprehensive academic reports.">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Vis.js Network for interactive citation graphs -->
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+  <!-- Marked.js for fast, clean markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Application CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="container header-content">
+      <div class="brand-wrapper">
+        <div class="brand-logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+            <path d="m14.5 12.5 2.5 2.5"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">
+            LitAutoResearch
+            <span class="brand-badge">ACADEMIC AI</span>
+          </div>
+          <div style="font-size: 0.75rem; color: #64748b; font-weight: 500;">
+            Autonomous Literature Review & Citation Synthesis
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button class="pill-button" onclick="downloadMatrixCsv()" title="Export Literature Review Matrix as CSV">
+          📊 Export Matrix (CSV)
+        </button>
+        <button class="pill-button" onclick="downloadReportMarkdown()" title="Download Full Markdown Report">
+          📥 Download Report (.MD)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Application Body -->
+  <main class="main-wrapper">
+    <div class="container">
+
+      <!-- Hero Input & Control Panel -->
+      <section class="control-panel">
+        <!-- Source Mode Switcher -->
+        <div class="mode-tabs">
+          <button class="mode-tab active" data-mode="online" onclick="setSourceMode('online')">
+            🌐 Live Online Search (arXiv & OpenAlex)
+          </button>
+          <button class="mode-tab" data-mode="pdf" onclick="setSourceMode('pdf')">
+            📂 Upload PDF Files
+          </button>
+        </div>
+
+        <!-- PANEL 1: Live Online Search (Active by default) -->
+        <div id="panel-online-search" class="source-panel">
+          <!-- Main Form Grid -->
+          <div class="form-grid">
+            <!-- Research Topic -->
+            <div class="form-group">
+              <label class="form-label" for="input-topic">
+                <span>Research Topic</span>
+                <span style="font-size: 0.72rem; color: #64748b;">Primary Field</span>
+              </label>
+              <input 
+                type="text" 
+                id="input-topic" 
+                class="form-input" 
+                placeholder="e.g., Retrieval-Augmented Generation (RAG)" 
+                value="Retrieval-Augmented Generation (RAG)"
+              >
+            </div>
+
+            <!-- Research Question -->
+            <div class="form-group">
+              <label class="form-label" for="input-question">
+                <span>Research Question</span>
+                <span style="font-size: 0.72rem; color: #64748b;">Core Inquiry</span>
+              </label>
+              <input 
+                type="text" 
+                id="input-question" 
+                class="form-input" 
+                placeholder="e.g., How can RAG reduce AI hallucinations?" 
+                value="How can RAG reduce AI hallucinations?"
+              >
+            </div>
+
+            <!-- Publication Year Span -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Publication Year</span>
+                <span style="font-size: 0.72rem; color: #64748b;">Range</span>
+              </label>
+              <div class="year-inputs">
+                <input type="number" id="input-start-year" class="form-input year-input" value="2021" min="2010" max="2030">
+                <span style="color: #64748b;">—</span>
+                <input type="number" id="input-end-year" class="form-input year-input" value="2026" min="2010" max="2030">
+              </div>
+            </div>
+
+            <!-- Number of Papers & CTA -->
+            <div class="form-group">
+              <label class="form-label" for="input-num-papers">
+                <span>Papers Count</span>
+                <span id="range-val-badge" class="range-badge">20</span>
+              </label>
+              <div class="range-wrap">
+                <input type="range" id="input-num-papers" class="range-slider" min="5" max="40" step="5" value="20">
+              </div>
+            </div>
+          </div>
+
+          <!-- Preset Pills & CTA Button Row -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; flex-wrap: wrap; gap: 16px;">
+            <div class="preset-row">
+              <span class="preset-title">QUICK PRESETS:</span>
+              <button class="pill-button preset-btn active" data-preset="rag">
+                🔍 RAG & Hallucination Mitigation
+              </button>
+              <button class="pill-button preset-btn" data-preset="diffusion">
+                🧬 Diffusion in Medical Imaging
+              </button>
+              <button class="pill-button preset-btn" data-preset="cot">
+                🧠 Chain-of-Thought Reasoning
+              </button>
+              <button class="pill-button preset-btn" data-preset="hybrid_search">
+                ⚡ Sparse vs Dense Hybrid Search
+              </button>
+            </div>
+
+            <div style="min-width: 280px;">
+              <button id="generate-online-btn" class="cta-btn" onclick="startReviewGeneration()">
+                <span>✨</span>
+                <span>Generate Literature Review</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 2: Upload PDF Files (Only shown when PDF mode is selected) -->
+        <div id="panel-pdf-upload" class="source-panel" style="display: none;">
+          <div id="pdf-dropzone" class="pdf-dropzone" style="display: block;">
+            <input type="file" id="file-input" multiple accept=".pdf" style="display: none;">
+            <div class="dropzone-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
+            <div class="dropzone-text">Drop research paper PDFs here, or click to browse</div>
+            <div class="dropzone-subtext">Supports multi-file parsing of titles, abstracts, methods, results, and citations</div>
+            <div id="uploaded-files-list" class="uploaded-files-list"></div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px;">
+            <div style="min-width: 320px;">
+              <button id="generate-pdf-btn" class="cta-btn" onclick="startReviewGeneration()">
+                <span>📑</span>
+                <span>Generate Review from Uploaded PDFs</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live Synthesis Progress Tracker -->
+      <section id="progress-card" class="progress-card">
+        <div class="progress-header">
+          <div class="progress-title">
+            <span class="spinner"></span>
+            <span>Synthesizing Literature Review Pipeline</span>
+          </div>
+          <span style="font-size: 0.8rem; color: #818cf8;">Automated Scholarly Extraction</span>
+        </div>
+        <div class="progress-steps">
+          <div class="step-item active">
+            <div class="step-num">1</div>
+            <div>Database Search & Paper Discovery</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">2</div>
+            <div>Abstract Extraction & PDF Ingestion</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">3</div>
+            <div>Citation Network & Cluster Modeling</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">4</div>
+            <div>Literature Matrix Comparative Analysis</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">5</div>
+            <div>Research Gap Synthesis & Final Report</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Section: 5 Outputs Workspace Tabs -->
+      <section class="results-section">
+        <!-- Navigation Tabs -->
+        <div class="workspace-tabs">
+          <button class="tab-btn active" data-tab="papers">
+            <span>📚 Research Papers List</span>
+            <span id="count-badge-papers" class="tab-count">20</span>
+          </button>
+          <button class="tab-btn" data-tab="graph">
+            <span>🕸️ Citation Graph</span>
+            <span id="count-badge-graph" class="tab-count">20</span>
+          </button>
+          <button class="tab-btn" data-tab="matrix">
+            <span>📊 Literature-Review Matrix</span>
+            <span id="count-badge-matrix" class="tab-count">20</span>
+          </button>
+          <button class="tab-btn" data-tab="gaps">
+            <span>💡 Research Gaps & Evidence</span>
+            <span id="count-badge-gaps" class="tab-count">5</span>
+          </button>
+          <button class="tab-btn" data-tab="report">
+            <span>📄 Synthesized Review Report</span>
+          </button>
+        </div>
+
+        <!-- TAB 1: Research Papers List -->
+        <div id="tab-papers" class="tab-content active">
+          <div class="papers-toolbar">
+            <div class="papers-search">
+              <input 
+                type="text" 
+                id="papers-search-input" 
+                class="form-input" 
+                placeholder="Search retrieved papers by title, author, abstract..." 
+                oninput="filterPapersList()"
+              >
+            </div>
+            <div id="papers-count-badge" style="font-size: 0.88rem; color: #94a3b8; font-weight: 600;">
+              20 Papers Found
+            </div>
+          </div>
+          <div id="papers-grid" class="papers-grid">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+
+        <!-- TAB 2: Citation Graph -->
+        <div id="tab-graph" class="tab-content">
+          <div class="graph-container-wrapper">
+            <div class="graph-toolbar">
+              <div id="graph-stats-display" class="graph-stats-row">
+                <!-- Dynamically populated -->
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button id="physics-toggle-btn" class="pill-button active" onclick="toggleGraphPhysics()">
+                  ⚡ Physics: On
+                </button>
+                <button class="pill-button" onclick="resetGraphView()">
+                  🎯 Center View
+                </button>
+              </div>
+            </div>
+
+            <!-- Cluster Legend Bar -->
+            <div style="background: rgba(15, 23, 42, 0.7); padding: 8px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">THEMATIC CLUSTERS:</span>
+              <div id="graph-clusters-legend" class="graph-legend-row"></div>
+            </div>
+
+            <div class="graph-workspace">
+              <!-- Vis.js Network Canvas -->
+              <div id="citation-graph-canvas"></div>
+
+              <!-- Node Inspector Drawer -->
+              <div id="graph-inspector" class="graph-inspector">
+                <!-- Populated on node click -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: Literature-Review Matrix -->
+        <div id="tab-matrix" class="tab-content">
+          <div class="matrix-container">
+            <div class="matrix-toolbar">
+              <div style="display: flex; gap: 12px; align-items: center; flex: 1; max-width: 480px;">
+                <input 
+                  type="text" 
+                  id="matrix-search-input" 
+                  class="form-input" 
+                  placeholder="Filter matrix by method, dataset, benchmark, or limitations..." 
+                  oninput="applyMatrixFilters()"
+                >
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span id="matrix-count-badge" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">20 papers</span>
+                <button class="pill-button" onclick="copyMatrixMarkdown()">📋 Copy Markdown Table</button>
+                <button class="pill-button" onclick="downloadMatrixCsv()">📊 Download CSV</button>
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="matrix-table">
+                <thead>
+                  <tr>
+                    <th style="cursor: pointer;" onclick="sortMatrixBy('title')">Paper & Authors ⇕</th>
+                    <th style="cursor: pointer;" onclick="sortMatrixBy('methodology')">Proposed Methodology / Architecture ⇕</th>
+                    <th>Datasets & Benchmarks</th>
+                    <th>Key Results (Quant & Qual)</th>
+                    <th>Identified Limitations & Bottlenecks</th>
+                  </tr>
+                </thead>
+                <tbody id="matrix-table-body">
+                  <!-- Populated by matrix.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Research Gaps -->
+        <div id="tab-gaps" class="tab-content">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+            <div>
+              <h2 style="font-size: 1.3rem; font-weight: 700; color: #ffffff;">Critical Research Gaps & Open Challenges</h2>
+              <p style="font-size: 0.88rem; color: #94a3b8;">Synthesized cross-paper vulnerabilities supported by empirical citations</p>
+            </div>
+            <span id="gaps-count-badge" class="brand-badge" style="font-size: 0.82rem; padding: 4px 12px;">5 Research Gaps</span>
+          </div>
+
+          <div id="gaps-grid" class="gaps-grid">
+            <!-- Populated by gaps.js -->
+          </div>
+        </div>
+
+        <!-- TAB 5: Research Report -->
+        <div id="tab-report" class="tab-content">
+          <div class="report-layout">
+            <!-- Dynamic Table of Contents Sidebar -->
+            <aside class="report-toc-card">
+              <div class="toc-title">Table of Contents</div>
+              <ul id="report-toc-list" class="toc-list">
+                <!-- Dynamically generated -->
+              </ul>
+              <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px;">
+                <button class="pill-button" onclick="copyReportMarkdown()">📋 Copy Markdown</button>
+                <button class="pill-button" onclick="downloadReportMarkdown()">📥 Download .MD</button>
+                <button class="pill-button" onclick="printReport()">🖨️ Print / Save PDF</button>
+              </div>
+            </aside>
+
+            <!-- Main Rendered Markdown Academic Report -->
+            <article class="report-content-card">
+              <div class="report-toolbar">
+                <span class="brand-badge">ACADEMIC SYNTHESIS REPORT</span>
+                <div style="display: flex; gap: 8px;">
+                  <button class="pill-button" onclick="copyReportMarkdown()">📋 Copy</button>
+                  <button class="pill-button" onclick="downloadReportMarkdown()">📥 Export</button>
+                </div>
+              </div>
+              <div id="report-markdown-rendered" class="report-markdown">
+                <!-- Populated by report.js -->
+              </div>
+            </article>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Script Imports -->
+  <script src="/static/js/graph.js"></script>
+  <script src="/static/js/matrix.js"></script>
+  <script src="/static/js/gaps.js"></script>
+  <script src="/static/js/report.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
