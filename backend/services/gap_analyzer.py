@@ -1,147 +1,168 @@
 import re
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class ResearchGapAnalyzer:
-    def __init__(self):
-        pass
+    GAP_MARKERS = (
+        "limitation",
+        "future work",
+        "future research",
+        "further work",
+        "remains unclear",
+        "remain unclear",
+        "not address",
+        "not explore",
+        "does not",
+        "do not",
+        "lack",
+        "challenge",
+        "we leave",
+        "open question",
+        "out of scope",
+        "unresolved",
+        "not evaluate",
+        "not test",
+    )
+
+    @staticmethod
+    def _normalize_text(value: str) -> str:
+        return re.sub(r"\s+", " ", value or "").strip()
+
+    @classmethod
+    def _find_gap_evidence(
+        cls, paper: Dict[str, Any]
+    ) -> Tuple[Optional[str], Optional[str]]:
+        page_evidence = paper.get("page_evidence") or []
+        candidates = [
+            (
+                cls._normalize_text(item.get("quote", "")),
+                cls._normalize_text(item.get("section", "")) or "Paper text",
+            )
+            for item in page_evidence
+        ]
+        extracted_text = cls._normalize_text(paper.get("extracted_text", ""))
+        if extracted_text:
+            extracted_text = re.split(
+                r"\b(?:references|bibliography)\b", extracted_text, maxsplit=1, flags=re.IGNORECASE
+            )[0]
+            candidates.extend(
+                (cls._normalize_text(sentence), "Extracted paper text")
+                for sentence in re.split(r"(?<=[.!?])\s+", extracted_text)
+            )
+        abstract = cls._normalize_text(paper.get("abstract", ""))
+        candidates.extend(
+            (cls._normalize_text(sentence), "Abstract")
+            for sentence in re.split(r"(?<=[.!?])\s+", abstract)
+        )
+
+        marker_candidates = [
+            (quote, section)
+            for quote, section in candidates
+            if quote and any(marker in quote.lower() for marker in cls.GAP_MARKERS)
+        ]
+        if not marker_candidates:
+            return None, None
+
+        # Prefer direct limitation/future-work statements over general contrast words.
+        marker_candidates.sort(
+            key=lambda candidate: (
+                min(
+                    index
+                    for index, marker in enumerate(cls.GAP_MARKERS)
+                    if marker in candidate[0].lower()
+                ),
+                len(candidate[0]) > 500,
+            )
+        )
+        quote, section = marker_candidates[0]
+        if len(quote) > 500:
+            quote = quote[:497].rsplit(" ", 1)[0] + "..."
+        return quote, section
 
     def analyze_gaps(
         self,
         papers: List[Dict[str, Any]],
         topic: str,
-        research_question: str
+        research_question: str,
     ) -> List[Dict[str, Any]]:
-        """
-        Synthesizes core research gaps across the paper corpus, backed by citations and empirical evidence.
-        """
-        # Collect limitations and contexts from all papers
-        all_limitations = []
-        for p in papers:
-            all_limitations.append({
-                "paper_id": p.get("id"),
-                "title": p.get("title"),
-                "authors": p.get("authors", []),
-                "year": p.get("year", 2024),
-                "abstract": p.get("abstract", ""),
-                "citation_count": p.get("citation_count", 0)
-            })
+        """Return one evidence-grounded research-gap entry for every paper."""
+        gaps = []
+        for index, paper in enumerate(papers, start=1):
+            paper_id = paper.get("id") or f"paper_{index}"
+            title = self._normalize_text(paper.get("title", "")) or "Untitled paper"
+            authors = paper.get("authors") or []
+            year = paper.get("year")
+            venue = paper.get("venue") or "Publication details not available"
+            url = paper.get("pdf_url") or paper.get("url") or ""
 
-        # Define archetypal research gap templates tailored to current state-of-the-art (2021-2026)
-        gap_definitions = [
-            {
-                "id": "gap_1",
-                "category": "Robustness & Noise Vulnerability",
-                "title": "Distractor Sensitivity and Hallucination Amplification from Noisy Contexts",
-                "severity": "Critical",
-                "keywords": ["noise", "distractor", "lost in the middle", "irrelevant", "misleading", "adversarial"],
-                "description": "While RAG grounds outputs in retrieved texts, current models struggle to discern irrelevant, outdated, or adversarial passages. When a retriever returns distractor passages with high keyword overlap, generative LLMs often incorporate the false premise, producing reinforced hallucinations.",
-                "future_directions": [
-                    "Develop parametric-nonparametric calibration gates that dynamically weigh retrieved evidence against internal parametric confidence.",
-                    "Formulate adversarial robustness benchmarks specifically probing RAG systems with semantically plausible but factually inverted distractors."
-                ]
-            },
-            {
-                "id": "gap_2",
-                "category": "Inference Latency & Efficiency",
-                "title": "Inference Latency Overhead of Multi-Stage Reflection and Corrective Reranking",
-                "severity": "High",
-                "keywords": ["latency", "reflection", "self-rag", "crag", "cost", "overhead", "multi-hop", "computational"],
-                "description": "Techniques that achieve the lowest hallucination rates (e.g., Self-RAG, Corrective RAG, Graph-based iterative search) require multiple sequential LLM calls, critique evaluations, and query rewrites. This introduces 3x to 8x latency multipliers, making them impractical for real-time latency-sensitive production environments.",
-                "future_directions": [
-                    "Investigate speculative decoding and early-exit routing architectures for self-reflective verification.",
-                    "Distill multi-stage critique and corrective reasoning steps into lightweight unified student models."
-                ]
-            },
-            {
-                "id": "gap_3",
-                "category": "Benchmarking & Evaluation Methodology",
-                "title": "Standardization Deficits in Automated Hallucination and Faithfulness Metrics",
-                "severity": "High",
-                "keywords": ["evaluat", "metric", "ragas", "benchmark", "human", "grounding", "faithfulness"],
-                "description": "Existing evaluation frameworks (e.g., RAGAS, TruLens) predominantly rely on LLM-as-a-judge approaches, which are themselves subject to sycophancy, position bias, and intrinsic hallucination. There is an absence of unified, standardized multi-turn and cross-lingual benchmarks to reliably measure grounding fidelity.",
-                "future_directions": [
-                    "Establish deterministic symbolic verification pipelines combining knowledge graph fact-checking with neural evaluation.",
-                    "Develop fine-grained error taxonomies distinguishing between context-misattribution and counterfactual generation."
-                ]
-            },
-            {
-                "id": "gap_4",
-                "category": "Temporal & Knowledge Conflict",
-                "title": "Temporal Staleness and Cross-Document Knowledge Conflict Resolution",
-                "severity": "Medium",
-                "keywords": ["temporal", "update", "conflict", "crud", "staleness", "version", "dynamic"],
-                "description": "Real-world knowledge bases continuously evolve. When retrieved passages contain conflicting facts across distinct publication timestamps or organizational policies, current RAG architectures lack temporal reasoning mechanisms to establish fact provenance and chronological precedence.",
-                "future_directions": [
-                    "Incorporate explicit timestamp-aware temporal graph structures into dense vector indices.",
-                    "Design fact-updating attention mechanisms capable of resolving contradictory claims based on source authority and validity windows."
-                ]
-            },
-            {
-                "id": "gap_5",
-                "category": "Complex Multi-Hop Reasoning",
-                "title": "Disjoint Information Synthesis across Long Horizons",
-                "severity": "Medium",
-                "keywords": ["multi-hop", "graph", "scattered", "complex", "aggregation", "thematic"],
-                "description": "Standard embedding-based cosine similarity retrieves isolated chunks that match question terms directly, but fails to recover inferential chains requiring multi-hop traversal across distinct corpus documents. GraphRAG mitigates this but incurs steep construction overhead.",
-                "future_directions": [
-                    "Explore hybrid neural-symbolic graph traversals with dynamic on-the-fly relation extraction during query execution.",
-                    "Formulate memory-augmented agentic retrieval workflows that autonomously maintain state across reasoning sub-goals."
-                ]
-            }
-        ]
+            first_author = authors[0].split()[-1] if authors else "Unknown author"
+            citation = (
+                f"{first_author} et al. ({year})"
+                if len(authors) > 1 and year
+                else f"{first_author} ({year})"
+                if year
+                else first_author
+            )
 
-        synthesized_gaps = []
+            quote, section = self._find_gap_evidence(paper)
+            if quote:
+                research_gap = (
+                    "The paper explicitly discusses a limitation or future-work "
+                    f"gap: {quote}"
+                )
+                gap_basis = f"Extracted from the paper's {section}."
+            else:
+                research_gap = (
+                    "No explicit limitation or future-research gap was found in the "
+                    "available paper text. The gap cannot be reliably determined "
+                    "without additional full-text evidence."
+                )
+                gap_basis = (
+                    "No limitation or future-work statement was found in the "
+                    "available abstract or extracted PDF text."
+                )
 
-        for gap in gap_definitions:
-            matching_evidence = []
-            for p in all_limitations:
-                text = f"{p['title']} {p['abstract']}".lower()
-                matches = sum(1 for kw in gap["keywords"] if kw in text)
-                if matches > 0:
-                    author_last = p["authors"][0].split()[-1] if p["authors"] else "Author"
-                    cite_str = f"{author_last} et al. ({p['year']})" if len(p["authors"]) > 1 else f"{author_last} ({p['year']})"
+            evidence = []
+            if quote:
+                evidence.append(
+                    {
+                        "paper_id": paper_id,
+                        "citation": citation,
+                        "title": title,
+                        "year": year,
+                        "venue": venue,
+                        "url": url,
+                        "section": section,
+                        "evidence_quote": quote,
+                    }
+                )
 
-                    # Find a relevant sentence
-                    sentences = re.split(r'[\.\n]\s+', p["abstract"])
-                    relevant_sentence = ""
-                    for s in sentences:
-                        if any(kw in s.lower() for kw in gap["keywords"]):
-                            relevant_sentence = s.strip()
-                            break
+            gaps.append(
+                {
+                    "id": f"gap_{paper_id}",
+                    "paper_id": paper_id,
+                    "paper_title": title,
+                    "citation": citation,
+                    "category": "Paper-specific research gap",
+                    "title": title,
+                    "description": research_gap,
+                    "detailed_analysis": research_gap,
+                    "research_gap": research_gap,
+                    "gap_basis": gap_basis,
+                    "has_explicit_gap": bool(quote),
+                    "context_excerpt": (
+                        self._normalize_text(paper.get("abstract", ""))
+                        if not self._normalize_text(paper.get("abstract", "")).lower().startswith(
+                            "study investigating "
+                        )
+                        else ""
+                    ),
+                    "url": url,
+                    "supporting_evidence": evidence,
+                    "evidence_count": len(evidence),
+                    "research_agenda": [],
+                    "future_directions": [],
+                }
+            )
 
-                    if not relevant_sentence and sentences:
-                        relevant_sentence = sentences[0].strip()
-
-                    matching_evidence.append({
-                        "paper_id": p["paper_id"],
-                        "citation": cite_str,
-                        "title": p["title"],
-                        "year": p["year"],
-                        "evidence_quote": relevant_sentence[:220] + ("..." if len(relevant_sentence) > 220 else "")
-                    })
-
-            # If no direct keyword matches, associate top cited papers as supporting baseline
-            if not matching_evidence and papers:
-                top_p = papers[0]
-                author_last = top_p.get("authors", ["Author"])[0].split()[-1]
-                matching_evidence.append({
-                    "paper_id": top_p.get("id"),
-                    "citation": f"{author_last} et al. ({top_p.get('year', 2024)})",
-                    "title": top_p.get("title"),
-                    "year": top_p.get("year", 2024),
-                    "evidence_quote": f"Highlights ongoing challenges in grounding external knowledge to reduce factual inaccuracies in generative pipelines."
-                })
-
-            synthesized_gaps.append({
-                "id": gap["id"],
-                "category": gap["category"],
-                "title": gap["title"],
-                "severity": gap["severity"],
-                "description": gap["description"],
-                "supporting_evidence": matching_evidence[:4],
-                "evidence_count": len(matching_evidence),
-                "future_directions": gap["future_directions"]
-            })
-
-        return synthesized_gaps
+        return gaps

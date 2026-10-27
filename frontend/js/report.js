@@ -63,10 +63,6 @@ function downloadReportMarkdown() {
   window.open('/api/export/markdown', '_blank');
 }
 
-function downloadBibtex() {
-  window.open('/api/export/bibtex', '_blank');
-}
-
 function printReport() {
   window.print();
 }

@@ -1,150 +1,326 @@
 import re
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class LiteratureMatrixGenerator:
-    def __init__(self):
-        pass
+    DATASET_NAMES = (
+        "TruthfulQA",
+        "FEVER",
+        "HotpotQA",
+        "TriviaQA",
+        "PopQA",
+        "Natural Questions",
+        "NaturalQuestions",
+        "PubHealth",
+        "ARC-Challenge",
+        "BioASQ",
+        "MedQA",
+        "MS MARCO",
+        "BiographyQA",
+        "CRUD-RAG",
+        "MMLU",
+        "GSM8K",
+        "SQuAD",
+        "HaluEval",
+        "WikiData",
+        "ImageNet",
+        "GLUE",
+        "MuSiQue",
+        "QASPER",
+        "NarrativeQA",
+        "FEVEROUS",
+        "ELI5",
+        "ASQA",
+        "KILT",
+        "Natural Questions (NQ)",
+    )
+    METRIC_NAMES = (
+        "Exact Match",
+        "EM",
+        "F1",
+        "Precision",
+        "Recall",
+        "Accuracy",
+        "ROUGE",
+        "BLEU",
+        "BERTScore",
+        "MRR",
+        "NDCG",
+        "MAP",
+        "Hit Rate",
+        "Faithfulness",
+        "Answer Relevance",
+        "Context Precision",
+        "Context Recall",
+        "AUROC",
+        "AUC",
+        "Latency",
+        "throughput",
+        "perplexity",
+        "BLEU-4",
+        "ROUGE-L",
+    )
+    SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+|\n+")
 
-    def generate_matrix(self, papers: List[Dict[str, Any]], research_question: str = "") -> List[Dict[str, Any]]:
-        """
-        Extracts comparative dimensions: Methods, Datasets, Results, and Limitations.
-        """
-        matrix = []
-
-        for p in papers:
-            title = p.get("title", "")
-            abstract = p.get("abstract", "")
-            full_context = f"{title}. {abstract}"
-
-            method = self._extract_methodology(title, abstract)
-            datasets = self._extract_datasets(full_context)
-            results = self._extract_results(full_context)
-            limitations = self._extract_limitations(full_context)
-
-            first_author = p.get("authors", ["Author"])[0].split()[-1] if p.get("authors") else "Author"
-            author_str = f"{first_author} et al." if len(p.get("authors", [])) > 1 else first_author
-
-            matrix.append({
-                "paper_id": p.get("id"),
-                "title": title,
-                "authors": author_str,
-                "full_authors": p.get("authors", []),
-                "year": p.get("year", 2024),
-                "venue": p.get("venue", "Peer-reviewed"),
-                "citations": p.get("citation_count", 0),
-                "url": p.get("url", ""),
-                "pdf_url": p.get("pdf_url", ""),
-                "methodology": method,
-                "datasets": datasets,
-                "results": results,
-                "limitations": limitations
-            })
-
-        return matrix
-
-    def _extract_methodology(self, title: str, abstract: str) -> str:
-        text = f"{title} {abstract}".lower()
-
-        # Specific AI / NLP / RAG architectural approaches
-        if "self-rag" in text or "self-reflection" in text:
-            return "Self-Reflective RAG: Dynamic selective retrieval with internal critique tokens."
-        elif "crag" in text or "corrective" in text:
-            return "Corrective RAG (CRAG): Retrieval confidence evaluator with web-scale fallback."
-        elif "graph" in text and ("rag" in text or "knowledge" in text):
-            return "Hierarchical Graph RAG: Knowledge graph community clustering with recursive summarization."
-        elif "lost in the middle" in text or "position" in text:
-            return "Context Re-ordering & Calibrated Re-ranking: Mitigating positional bias."
-        elif "ragas" in text or ("evaluat" in text and "faithfulness" in text):
-            return "Automated Multi-dimensional Evaluation: Decoupled context precision and faithfulness."
-        elif "dense passage" in text or "dpr" in text:
-            return "Dense Passage Retrieval (DPR) + Cross-Encoder Reranker."
-
-        # Time Series / Finance / Machine Learning approaches
-        if "bi-lstm" in text or "bilstm" in text:
-            if "roberta" in text or "sentiment" in text:
-                return "Hybrid Bi-LSTM & RoBERTa: Textual market sentiment fusion with bidirectional recurrent modeling."
-            return "Bidirectional LSTM (Bi-LSTM): Deep bidirectional sequential temporal modeling."
-        elif "lstm" in text:
-            return "Long Short-Term Memory (LSTM) Recurrent Neural Network for temporal sequence forecasting."
-        elif "transformer" in text or "attention" in text:
-            return "Multi-Head Self-Attention Transformer: Capturing long-range temporal/token dependencies."
-        elif "arima" in text or "garch" in text:
-            return "Econometric Statistical Modeling (ARIMA / GARCH) with volatility estimation."
-        elif "random forest" in text or "xgboost" in text or "ensemble" in text:
-            return "Gradient-Boosted Decision Trees & Ensemble Learning with technical indicator feature engineering."
-        elif "diffusion" in text:
-            return "Denoising Latent Diffusion Probabilistic Models with conditioned score-matching."
-
-        # Pattern-based extraction from abstract sentences
-        sentences = re.split(r'[\.\n]\s+', abstract)
-        for s in sentences:
-            s_clean = s.strip()
-            if any(marker in s_clean.lower() for marker in ["we propose", "we introduce", "this paper presents", "we develop", "we present", "our approach", "we apply"]):
-                trimmed = re.sub(r'^(In this paper,\s*|We propose\s*|We introduce\s*|We present\s*|This paper presents\s*)', '', s_clean, flags=re.IGNORECASE)
-                if len(trimmed) > 20:
-                    return trimmed[:180] + ("..." if len(trimmed) > 180 else "")
-
-        if "retrieval" in text and "generation" in text:
-            return "Hybrid Retrieval-Augmentation: Grounding generative decoders with verified external context."
-
-        return "Supervised deep learning and comparative algorithmic benchmarking."
-
-    def _extract_datasets(self, context: str) -> str:
-        found_datasets = []
-        known_benchmarks = [
-            # NLP & QA Benchmarks
-            "TruthfulQA", "FEVER", "HotpotQA", "TriviaQA", "PopQA",
-            "NQ", "Natural Questions", "PubHealth", "ARC-Challenge",
-            "BioASQ", "MedQA", "MS MARCO", "BiographyQA", "CRUD-RAG",
-            "MMLU", "GSM8K", "WikiData", "SQuAD",
-            # Financial & Market Benchmarks
-            "S&P 500", "NASDAQ", "Dow Jones", "DJIA", "CSI 300", "StockNet",
-            "Yahoo Finance", "NYSE", "Hang Seng", "KOSPI", "Nifty 50", "Apple Inc",
-            # General Vision & ML
-            "ImageNet", "COCO", "GLUE", "SuperGLUE"
+    @classmethod
+    def _sentences(cls, text: str) -> List[str]:
+        return [
+            re.sub(r"\s+", " ", sentence).strip(" \t-•")
+            for sentence in cls.SENTENCE_SPLIT.split(text or "")
+            if len(re.sub(r"\s+", " ", sentence).strip()) >= 10
         ]
 
-        for bench in known_benchmarks:
-            if re.search(r'\b' + re.escape(bench) + r'\b', context, re.IGNORECASE):
-                found_datasets.append(bench)
+    @staticmethod
+    def _unique(values: List[str], limit: int = 6) -> List[str]:
+        seen = set()
+        unique = []
+        for value in values:
+            normalized = value.casefold()
+            if normalized not in seen:
+                seen.add(normalized)
+                unique.append(value)
+            if len(unique) >= limit:
+                break
+        return unique
 
-        if found_datasets:
-            return ", ".join(list(dict.fromkeys(found_datasets)))
+    @staticmethod
+    def _without_references(text: str) -> str:
+        return re.split(
+            r"\b(?:references|bibliography|works cited)\b",
+            text or "",
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )[0]
 
-        match = re.search(r'(?:evaluated on|tested on|experiments on|dataset(?:s)? of|data from)\s+([A-Za-z0-9\s,\-]+?)(?:\.|;|\band\b)', context, re.IGNORECASE)
-        if match:
-            ds = match.group(1).strip()
-            if 3 < len(ds) < 80:
-                return ds
+    @staticmethod
+    def _join_or_unreported(values: List[str], field: str) -> str:
+        if values:
+            return " • ".join(values)
+        return f"Not reported in available paper text ({field})."
 
-        return "Historical Benchmark Time-Series & Cross-Validation Corpora"
+    def generate_matrix(
+        self, papers: List[Dict[str, Any]], research_question: str = ""
+    ) -> List[Dict[str, Any]]:
+        """Extract per-paper facts only from the metadata, abstract, or parsed PDF text."""
+        matrix = []
+        for index, paper in enumerate(papers, start=1):
+            title = paper.get("title") or "Untitled paper"
+            abstract = paper.get("abstract") or ""
+            extracted_text = paper.get("extracted_text") or ""
+            analysis_text = self._without_references(extracted_text or abstract)
+            sentences = self._sentences(analysis_text)
+            title_sentences = self._sentences(title)
 
-    def _extract_results(self, context: str) -> str:
-        quant_matches = re.findall(r'(?:(?:reduces?|decreases?|improves?|outperforms?|gains?|increases?|achieves?)\s+[^,\.]{5,90}(?:\d+[\.\d]*%|\d+[\.\d]*\s*(?:points|EM|F1|accuracy|reduction|gain|MSE|RMSE|MAE|AUC|R2)))', context, re.IGNORECASE)
-        if quant_matches:
-            return quant_matches[0].strip().capitalize()
+            authors = paper.get("authors") or []
+            first_author = authors[0].split()[-1] if authors else "Unknown author"
+            author_label = f"{first_author} et al." if len(authors) > 1 else first_author
 
-        sentences = re.split(r'[\.\n]\s+', context)
-        for s in sentences:
-            s_clean = s.strip()
-            if any(term in s_clean.lower() for term in ["demonstrate that", "results show", "outperforms standard", "significantly reduces", "higher precision", "accuracy of", "superior performance"]):
-                return s_clean[:180] + ("..." if len(s_clean) > 180 else "")
+            focus = self._first_matching_sentence(
+                sentences,
+                (
+                    "aim",
+                    "objective",
+                    "we study",
+                    "we investigate",
+                    "we address",
+                    "we propose",
+                    "we present",
+                    "we introduce",
+                    "this paper",
+                    "this work",
+                ),
+            ) or (title_sentences[0] if title_sentences else title)
 
-        return "Demonstrates statistically significant accuracy improvements and lower prediction error over baseline models."
+            methodology = self._first_matching_sentence(
+                sentences,
+                (
+                    "we propose",
+                    "we present",
+                    "we introduce",
+                    "we develop",
+                    "we design",
+                    "we implement",
+                    "we construct",
+                    "we evaluate",
+                    "we compare",
+                    "our method",
+                    "our approach",
+                    "methodology",
+                    "architecture",
+                ),
+            )
 
-    def _extract_limitations(self, context: str) -> str:
-        sentences = re.split(r'[\.\n]\s+', context)
-        for s in sentences:
-            s_clean = s.strip()
-            if any(term in s_clean.lower() for term in ["limitation", "however,", "struggles with", "vulnerable to", "degrades when", "costly", "latency overhead", "open challenge", "non-stationary", "overfitting"]):
-                return s_clean[:180] + ("..." if len(s_clean) > 180 else "")
+            datasets = self._extract_datasets(analysis_text)
+            metrics = self._extract_metrics_and_baselines(sentences)
+            results = self._first_matching_sentence(
+                sentences,
+                (
+                    "results show",
+                    "our results",
+                    "we find",
+                    "we found",
+                    "outperform",
+                    "achieve",
+                    "improve",
+                    "improves",
+                    "demonstrate",
+                    "evaluation shows",
+                    "experiments show",
+                    "performance",
+                ),
+            )
+            limitations = self._first_matching_sentence(
+                sentences,
+                (
+                    "limitation",
+                    "limitations",
+                    "future work",
+                    "future research",
+                    "remain unclear",
+                    "does not address",
+                    "do not address",
+                    "not evaluated",
+                    "not evaluate",
+                    "we leave",
+                    "open question",
+                    "challenge",
+                    "however",
+                    "although",
+                    "but ",
+                ),
+            )
+            future_scope = self._first_matching_sentence(
+                sentences,
+                ("future work", "future research", "we plan", "we leave", "further work"),
+            )
 
-        if "stock" in context.lower() or "market" in context.lower() or "time series" in context.lower():
-            return "Susceptible to abrupt market regime shifts, non-stationary noise, and macroeconomic black-swan shocks."
-        elif "graph" in context.lower():
-            return "High computational complexity during offline graph extraction and entity resolution."
-        elif "self-rag" in context.lower() or "critique" in context.lower():
-            return "Inference latency overhead due to multiple self-reflection decoding passes."
+            source_scope = (
+                paper.get("text_extraction_scope") or "Extracted PDF text excerpt available"
+                if extracted_text
+                else "Abstract only"
+                if abstract
+                else "Metadata only; no abstract or full text was available"
+            )
+            matrix.append(
+                {
+                    "paper_id": paper.get("id", f"paper_{index}"),
+                    "title": title,
+                    "authors": author_label,
+                    "full_authors": authors,
+                    "year": paper.get("year"),
+                    "venue": paper.get("venue") or "Publication details unavailable",
+                    "citations": paper.get("citation_count", 0),
+                    "url": paper.get("url", ""),
+                    "pdf_url": paper.get("pdf_url", ""),
+                    "abstract": abstract or "Abstract not available from the selected source.",
+                    "source_scope": source_scope,
+                    "research_focus": focus,
+                    "methodology": methodology or "Not described in available paper text.",
+                    "datasets": self._join_or_unreported(datasets, "dataset names"),
+                    "metrics_and_baselines": metrics
+                    or "Not reported in available paper text.",
+                    "results": results or "No specific result found in available paper text.",
+                    "limitations": limitations
+                    or "No explicit limitation found in available paper text.",
+                    "future_scope": future_scope
+                    or "No explicit future-work statement found in available paper text.",
+                }
+            )
+        return matrix
 
-        return "Sensitivity to noisy input context and distribution shifts in out-of-domain scenarios."
+    @staticmethod
+    def _first_matching_sentence(
+        sentences: List[str], markers: tuple
+    ) -> str:
+        for sentence in sentences:
+            lower_sentence = sentence.lower()
+            if any(marker in lower_sentence for marker in markers):
+                return sentence[:700]
+        return ""
+
+    def _extract_datasets(self, text: str) -> List[str]:
+        found = []
+        dataset_context_markers = (
+            "dataset",
+            "benchmark",
+            "evaluation",
+            "evaluate",
+            "evaluated",
+            "experiment",
+            "test on",
+            "tested on",
+            "test set",
+            "training set",
+        )
+        for sentence in self._sentences(text):
+            lower_sentence = sentence.lower()
+            if not any(marker in lower_sentence for marker in dataset_context_markers):
+                continue
+            for name in self.DATASET_NAMES:
+                if re.search(r"\b" + re.escape(name) + r"\b", sentence, re.IGNORECASE):
+                    found.append(name)
+
+        # Capture additional named datasets only when the text explicitly identifies
+        # them as a dataset/benchmark; avoid inventing names from generic sentences.
+        for match in re.finditer(
+            r"\b(?:dataset|benchmark|corpus|test set)s?\s+(?:named\s+|called\s+)?"
+            r"([A-Z][A-Za-z0-9_-]*(?:\s+[A-Z][A-Za-z0-9_-]*){0,3})",
+            text,
+        ):
+            candidate = match.group(1).strip()
+            if candidate.lower() not in {"the", "our", "this", "these"}:
+                found.append(candidate)
+
+        return self._unique(found)
+
+    def _extract_metrics_and_baselines(self, sentences: List[str]) -> str:
+        metrics = []
+        baselines = []
+        for sentence in sentences:
+            lower_sentence = sentence.lower()
+            has_evaluation_context = any(
+                marker in lower_sentence
+                for marker in (
+                    "evaluation",
+                    "evaluate",
+                    "experiment",
+                    "metric",
+                    "measure",
+                    "score",
+                    "baseline",
+                    "compared",
+                    "outperform",
+                    "accuracy",
+                    "precision",
+                    "recall",
+                    "f1",
+                )
+            )
+            if not has_evaluation_context:
+                continue
+            for metric in self.METRIC_NAMES:
+                if re.search(r"\b" + re.escape(metric.lower()) + r"\b", lower_sentence):
+                    metrics.append(metric)
+            if any(
+                marker in lower_sentence
+                for marker in (
+                    "baseline",
+                    "compared with",
+                    "compared to",
+                    "compared against",
+                    "outperform",
+                    "against the",
+                    "versus",
+                    " vs. ",
+                )
+            ):
+                baselines.append(sentence[:500])
+
+        metric_text = ", ".join(self._unique(metrics, limit=8))
+        baseline_text = " | ".join(self._unique(baselines, limit=2))
+        if not metric_text and not baseline_text:
+            return ""
+        return (
+            f"Metrics explicitly mentioned: {metric_text or 'Not specified'}"
+            f" | Baselines/comparisons: {baseline_text or 'Not specified'}"
+        )

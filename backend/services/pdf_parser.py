@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import pypdf
 
 
@@ -28,18 +28,24 @@ class PDFParser:
             if num_pages > 0:
                 first_page_text = reader.pages[0].extract_text() or ""
 
-            # Read all pages (up to first 25 pages to avoid memory exhaustion)
-            pages_to_read = min(num_pages, 25)
+            # Extract enough of each manuscript to cover methods, evaluation, and limitations.
+            pages_to_read = min(num_pages, 100)
             extracted_pages = []
+            page_records = []
             for i in range(pages_to_read):
                 p_text = reader.pages[i].extract_text() or ""
                 extracted_pages.append(p_text)
+                page_records.append({
+                    "page": i + 1,
+                    "text": p_text
+                })
 
             full_text = "\n".join(extracted_pages)
             if num_pages > 1:
                 last_pages_text = "\n".join(extracted_pages[-2:])
         except Exception as e:
             full_text = f"Error reading PDF content: {str(e)}"
+            page_records = []
 
         # 1. Title Extraction
         title = self._extract_title(reader.metadata if 'reader' in locals() else None, first_page_text, filename)
@@ -56,21 +62,70 @@ class PDFParser:
         # 5. References Extraction
         references = self._extract_references(last_pages_text, full_text)
 
+        # 6. Page-level evidence extraction
+        page_evidence = self._extract_page_evidence(page_records)
+
         return {
             "id": f"pdf_{path.stem[:20]}",
             "title": title,
             "authors": authors,
             "year": year,
             "venue": "Uploaded PDF Manuscript",
-            "citation_count": max(5, len(references) // 3),
+            "citation_count": None,
             "abstract": abstract,
+            "extracted_text": full_text[:100000],
+            "text_extraction_scope": f"First {min(num_pages, 100)} pages",
             "url": f"file:///{path.resolve()}",
             "pdf_url": f"file:///{path.resolve()}",
-            "referenced_works": [f"ref_{i+1}" for i in range(min(len(references), 15))],
+            "page_count": num_pages if 'num_pages' in locals() else 1,
+            "page_evidence": page_evidence,
+            "referenced_works": [],
             "raw_references": references[:15],
             "source": "Uploaded PDF",
             "file_size_kb": round(path.stat().st_size / 1024, 1)
         }
+
+    def _extract_page_evidence(self, page_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Scans each page for limitation statements, bottlenecks, and empirical findings with page attribution.
+        """
+        findings = []
+        keywords = [
+            "limitation", "bottleneck", "challenge", "vulnerability", "hallucinat", "noise",
+            "latency", "failure mode", "future work", "error analysis", "trade-off", "degradation"
+        ]
+        seen_quotes = set()
+
+        for p in page_records:
+            page_num = p["page"]
+            text = p["text"]
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+            for s in sentences:
+                s_clean = re.sub(r'\s+', ' ', s).strip()
+                if len(s_clean) < 40 or len(s_clean) > 280:
+                    continue
+                lower_s = s_clean.lower()
+                if any(k in lower_s for k in keywords):
+                    if s_clean not in seen_quotes:
+                        seen_quotes.add(s_clean)
+                        sec = "Empirical Evaluation"
+                        if "limitation" in lower_s:
+                            sec = "Limitations & Constraints"
+                        elif "future" in lower_s:
+                            sec = "Future Work"
+                        elif "latency" in lower_s or "cost" in lower_s:
+                            sec = "Computational Efficiency"
+                        elif "hallucinat" in lower_s or "noise" in lower_s:
+                            sec = "Robustness & Errors"
+
+                        findings.append({
+                            "page": page_num,
+                            "section": sec,
+                            "quote": s_clean
+                        })
+                        if len(findings) >= 8:
+                            return findings
+        return findings
 
     def _extract_title(self, metadata: Any, first_page: str, filename: str) -> str:
         # Check metadata
@@ -101,7 +156,7 @@ class PDFParser:
         cleaned_name = re.sub(r'\b[a-f0-9]{8}\b', '', cleaned_name).strip()
         return cleaned_name.title()
 
-    def _extract_year(self, first_page: str, full_text: str) -> int:
+    def _extract_year(self, first_page: str, full_text: str) -> Optional[int]:
         # Look for 2021-2026 or 2018-2026 in first page
         matches = re.findall(r'\b(20(?:1[89]|2[0-6]))\b', first_page)
         if matches:
@@ -109,7 +164,7 @@ class PDFParser:
         matches_all = re.findall(r'\b(20(?:1[89]|2[0-6]))\b', full_text[:3000])
         if matches_all:
             return int(matches_all[0])
-        return 2024
+        return None
 
     def _extract_authors(self, metadata: Any, first_page: str) -> List[str]:
         if metadata and metadata.author and len(metadata.author.strip()) > 3:
@@ -154,12 +209,7 @@ class PDFParser:
             if len(abstract_text) > 40:
                 return abstract_text[:1200]
 
-        # Fallback to initial paragraphs
-        paragraphs = [p.strip() for p in first_page.split("\n\n") if len(p.strip()) > 80]
-        if paragraphs:
-            return re.sub(r'\s+', ' ', paragraphs[0])[:800]
-
-        return "Empirical study presenting novel methodology, experimental evaluation, and analysis of current domain challenges."
+        return ""
 
     def _extract_references(self, last_pages: str, full_text: str) -> List[str]:
         refs = []

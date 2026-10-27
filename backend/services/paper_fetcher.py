@@ -45,7 +45,7 @@ class PaperFetcher:
         papers: List[Dict[str, Any]] = []
         combined_query = f"{topic} {research_question}".strip()
 
-        # 1. Fetch from OpenAlex (rich citation counts, referenced_works for citation graph)
+        # 1. Fetch from OpenAlex (rich citation counts and reference metadata)
         try:
             openalex_papers = self._fetch_openalex(combined_query, topic, start_year, end_year, max_papers)
             papers.extend(openalex_papers)
@@ -64,19 +64,10 @@ class PaperFetcher:
         # 3. Deduplicate papers by normalized title
         deduped = self._deduplicate_papers(papers)
 
-        # 4. If external networks failed or returned few results, supply enriched domain-specific fallback papers
-        if len(deduped) < 5:
-            fallback = self._get_fallback_corpus(topic, research_question, start_year, end_year)
-            deduped.extend(fallback)
-            deduped = self._deduplicate_papers(deduped)
-
-        # 5. Trim to max_papers and assign sequential IDs
+        # Return only papers actually found by the selected online sources.
         final_papers = deduped[:max_papers]
         for idx, paper in enumerate(final_papers):
             paper["id"] = f"paper_{idx + 1}"
-            if not paper.get("citation_count"):
-                # Assign a sensible baseline citation count if 0
-                paper["citation_count"] = max(1, int(15 - idx * 0.6))
 
         return final_papers
 
@@ -109,21 +100,20 @@ class PaperFetcher:
 
             authors = []
             for authorship in item.get("authorships", []):
-                author_name = authorship.get("author", {}).get("display_name")
+                author = authorship.get("author") or {}
+                author_name = author.get("display_name")
                 if author_name:
                     authors.append(author_name)
 
             abstract = reconstruct_inverted_index(item.get("abstract_inverted_index"))
-            if not abstract:
-                abstract = f"Study investigating {topic} approaches, benchmark performance, and architectural trade-offs."
 
-            year = item.get("publication_year") or start_year
+            year = item.get("publication_year")
             citation_count = item.get("cited_by_count", 0)
 
             # URL & PDF
             landing_url = item.get("doi") or item.get("id") or ""
             pdf_url = ""
-            oa = item.get("open_access", {})
+            oa = item.get("open_access") or {}
             if oa and oa.get("oa_url"):
                 pdf_url = oa.get("oa_url")
             elif landing_url.startswith("http"):
@@ -132,12 +122,14 @@ class PaperFetcher:
             # Referenced works (OpenAlex IDs)
             referenced_works = item.get("referenced_works", [])
 
+            primary_location = item.get("primary_location") or {}
+            source = primary_location.get("source") or {}
             papers.append({
                 "openalex_id": item.get("id", ""),
                 "title": title,
-                "authors": authors[:5] if authors else ["Academic Research Consortium"],
+                "authors": authors[:5],
                 "year": year,
-                "venue": item.get("primary_location", {}).get("source", {}).get("display_name") or "ArXiv / Peer-reviewed Conference",
+                "venue": source.get("display_name") or "Publication details unavailable",
                 "citation_count": citation_count,
                 "abstract": clean_text(abstract),
                 "url": landing_url,
@@ -183,12 +175,12 @@ class PaperFetcher:
             abstract = clean_text(summary_elem.text) if summary_elem is not None else ""
 
             published_elem = entry.find("atom:published", ns)
-            year = start_year
-            if published_elem is not None and published_elem.text:
-                try:
-                    year = int(published_elem.text[:4])
-                except Exception:
-                    year = start_year
+            if published_elem is None or not published_elem.text:
+                continue
+            try:
+                year = int(published_elem.text[:4])
+            except ValueError:
+                continue
 
             # Filter by year range
             if year < start_year or year > end_year:
@@ -216,7 +208,7 @@ class PaperFetcher:
 
             papers.append({
                 "title": title,
-                "authors": authors[:5] if authors else ["Anonymous Researcher"],
+                "authors": authors[:5],
                 "year": year,
                 "venue": "arXiv Preprint",
                 "citation_count": 0,

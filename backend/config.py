@@ -16,4 +16,4 @@ def get_ssl_context():
     except Exception:
         return ssl._create_unverified_context()
 
-DEFAULT_USER_AGENT = "LitAutoResearch/1.0 (academic-research-assistant; mailto:researcher@project.edu)"
+DEFAULT_USER_AGENT = "ScholarMatrixAI/1.0 (academic-research-assistant; mailto:researcher@project.edu)"

@@ -1,5 +1,5 @@
 // ==========================================================================
-// LitAutoResearch - Main Application Orchestrator
+// ScholarMatrix AI - Main Application Orchestrator
 // ==========================================================================
 
 let activeMode = 'online';
@@ -8,15 +8,13 @@ let fullReviewState = null;
 let currentPaperFilter = '';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Purge any legacy graph tabs or canvas if browser held cached HTML
+  document.querySelectorAll('[data-tab="graph"], #tab-graph, #citation-graph-canvas, .graph-container-wrapper').forEach(el => el.remove());
+
   initPresets();
   initRangeSlider();
   initDropzone();
   initTabs();
-
-  // Automatically kick off initial review for the user's research topic & question!
-  setTimeout(() => {
-    startReviewGeneration();
-  }, 400);
 });
 
 // Preset Topics & Questions
@@ -202,6 +200,11 @@ async function handleFilesUpload(files) {
       numSlider.value = Math.max(5, Math.min(uploadedPdfs.length, 40));
       rangeBadge.innerText = numSlider.value;
     }
+
+    if (activeMode === 'pdf') {
+      showToast('PDFs are ready. Generating the literature review...');
+      await startReviewGeneration();
+    }
   } catch (err) {
     console.error(err);
     showToast('Error parsing PDF documents: ' + err.message, 'error');
@@ -261,13 +264,6 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === `tab-${tabId}`);
   });
-
-  // Re-fit network graph if switching to graph tab
-  if (tabId === 'graph' && networkInstance) {
-    setTimeout(() => {
-      networkInstance.fit();
-    }, 150);
-  }
 }
 
 // Full Literature Review Pipeline Trigger
@@ -374,29 +370,23 @@ function renderAllOutputs(data) {
   // 1. Research Papers List
   renderPapersList(data.papers_list || []);
 
-  // 2. Citation Graph
-  if (typeof renderCitationGraph === 'function') {
-    renderCitationGraph(data.citation_graph || {});
-  }
-
-  // 3. Literature-Review Matrix
+  // 2. Literature-Review Matrix
   if (typeof renderLiteratureMatrix === 'function') {
     renderLiteratureMatrix(data.literature_matrix || []);
   }
 
-  // 4. Research Gaps
+  // 3. In-Depth Research Gaps & Evidence
   if (typeof renderResearchGaps === 'function') {
     renderResearchGaps(data.research_gaps || []);
   }
 
-  // 5. Research Report
+  // 4. Synthesized Academic Research Report
   if (typeof renderResearchReport === 'function') {
     renderResearchReport(data.research_report || {});
   }
 
   // Update tab counters
   updateTabCount('papers', (data.papers_list || []).length);
-  updateTabCount('graph', (data.citation_graph?.nodes || []).length);
   updateTabCount('matrix', (data.literature_matrix || []).length);
   updateTabCount('gaps', (data.research_gaps || []).length);
 }
@@ -420,16 +410,16 @@ function renderPapersList(papers) {
     <div class="paper-card" id="paper-card-${p.id}">
       <div class="paper-meta-row">
         <span class="paper-venue-badge">${escapeHtml(p.venue || 'ArXiv / Conference')}</span>
-        <span class="paper-cite-badge">★ ${p.citation_count || 0} Citations</span>
+        <span class="paper-cite-badge">${p.citation_count == null ? 'Citations unavailable' : `★ ${p.citation_count} Citations`}</span>
       </div>
 
       <h3 class="paper-title">${escapeHtml(p.title)}</h3>
       <div class="paper-authors">
-        ${(p.authors || []).slice(0, 4).map(a => escapeHtml(a)).join(', ')}${(p.authors || []).length > 4 ? ' et al.' : ''} (${p.year})
+        ${(p.authors || []).slice(0, 4).map(a => escapeHtml(a)).join(', ') || 'Author details unavailable'}${(p.authors || []).length > 4 ? ' et al.' : ''} (${p.year || 'Year unavailable'})
       </div>
 
       <p class="paper-abstract" id="abstract-text-${idx}">
-        ${escapeHtml(p.abstract)}
+        ${escapeHtml(p.abstract || 'Abstract not available from the selected source.')}
       </p>
 
       <div class="paper-footer">

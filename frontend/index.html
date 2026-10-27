@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LitAutoResearch — Autonomous Literature Review & Synthesis Engine</title>
-  <meta name="description" content="AI-Powered Systematic Literature Review Generator. Discovers research papers, builds citation networks, extracts literature matrices, synthesizes research gaps, and generates comprehensive academic reports.">
+  <title>ScholarMatrix AI — Autonomous Literature Review & Research Gap Discovery Engine</title>
+  <meta name="description" content="ScholarMatrix AI: Autonomous Academic Literature Review & Research Gap Discovery Engine. Ingests literature, builds comparative matrices, analyzes research gaps separately for each paper, and compiles systematic review reports.">
   
   <!-- Modern Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-  <!-- Vis.js Network for interactive citation graphs -->
-  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-
   <!-- Marked.js for fast, clean markdown rendering -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- Application CSS -->
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=2">
 </head>
 <body>
 
@@ -36,11 +37,11 @@
         </div>
         <div>
           <div class="brand-title">
-            LitAutoResearch
+            ScholarMatrix AI
             <span class="brand-badge">ACADEMIC AI</span>
           </div>
           <div style="font-size: 0.75rem; color: #64748b; font-weight: 500;">
-            Autonomous Literature Review & Citation Synthesis
+            Autonomous Literature Review & Research Gap Discovery
           </div>
         </div>
       </div>
@@ -170,7 +171,7 @@
               </svg>
             </div>
             <div class="dropzone-text">Drop research paper PDFs here, or click to browse</div>
-            <div class="dropzone-subtext">Supports multi-file parsing of titles, abstracts, methods, results, and citations</div>
+            <div class="dropzone-subtext">Multi-file parsing of paper metadata, abstracts, methods, results, datasets, and limitations</div>
             <div id="uploaded-files-list" class="uploaded-files-list"></div>
           </div>
 
@@ -190,9 +191,9 @@
         <div class="progress-header">
           <div class="progress-title">
             <span class="spinner"></span>
-            <span>Synthesizing Literature Review Pipeline</span>
+            <span>ScholarMatrix Literature Review Pipeline</span>
           </div>
-          <span style="font-size: 0.8rem; color: #818cf8;">Automated Scholarly Extraction</span>
+          <span style="font-size: 0.8rem; color: #818cf8;">Autonomous Scholarly Synthesis</span>
         </div>
         <div class="progress-steps">
           <div class="step-item active">
@@ -205,20 +206,20 @@
           </div>
           <div class="step-item">
             <div class="step-num">3</div>
-            <div>Citation Network & Cluster Modeling</div>
-          </div>
-          <div class="step-item">
-            <div class="step-num">4</div>
             <div>Literature Matrix Comparative Analysis</div>
           </div>
           <div class="step-item">
+            <div class="step-num">4</div>
+            <div>In-Depth Research Gaps & Evidence Extraction</div>
+          </div>
+          <div class="step-item">
             <div class="step-num">5</div>
-            <div>Research Gap Synthesis & Final Report</div>
+            <div>Systematic Review Report Compilation</div>
           </div>
         </div>
       </section>
 
-      <!-- Results Section: 5 Outputs Workspace Tabs -->
+      <!-- Results Section: 4 Workspaces Tabs -->
       <section class="results-section">
         <!-- Navigation Tabs -->
         <div class="workspace-tabs">
@@ -226,17 +227,13 @@
             <span>📚 Research Papers List</span>
             <span id="count-badge-papers" class="tab-count">20</span>
           </button>
-          <button class="tab-btn" data-tab="graph">
-            <span>🕸️ Citation Graph</span>
-            <span id="count-badge-graph" class="tab-count">20</span>
-          </button>
           <button class="tab-btn" data-tab="matrix">
             <span>📊 Literature-Review Matrix</span>
             <span id="count-badge-matrix" class="tab-count">20</span>
           </button>
           <button class="tab-btn" data-tab="gaps">
             <span>💡 Research Gaps & Evidence</span>
-            <span id="count-badge-gaps" class="tab-count">5</span>
+            <span id="count-badge-gaps" class="tab-count">0</span>
           </button>
           <button class="tab-btn" data-tab="report">
             <span>📄 Synthesized Review Report</span>
@@ -264,42 +261,7 @@
           </div>
         </div>
 
-        <!-- TAB 2: Citation Graph -->
-        <div id="tab-graph" class="tab-content">
-          <div class="graph-container-wrapper">
-            <div class="graph-toolbar">
-              <div id="graph-stats-display" class="graph-stats-row">
-                <!-- Dynamically populated -->
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <button id="physics-toggle-btn" class="pill-button active" onclick="toggleGraphPhysics()">
-                  ⚡ Physics: On
-                </button>
-                <button class="pill-button" onclick="resetGraphView()">
-                  🎯 Center View
-                </button>
-              </div>
-            </div>
-
-            <!-- Cluster Legend Bar -->
-            <div style="background: rgba(15, 23, 42, 0.7); padding: 8px 20px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 0.75rem; color: #64748b; font-weight: 700;">THEMATIC CLUSTERS:</span>
-              <div id="graph-clusters-legend" class="graph-legend-row"></div>
-            </div>
-
-            <div class="graph-workspace">
-              <!-- Vis.js Network Canvas -->
-              <div id="citation-graph-canvas"></div>
-
-              <!-- Node Inspector Drawer -->
-              <div id="graph-inspector" class="graph-inspector">
-                <!-- Populated on node click -->
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 3: Literature-Review Matrix -->
+        <!-- TAB 2: Literature-Review Matrix -->
         <div id="tab-matrix" class="tab-content">
           <div class="matrix-container">
             <div class="matrix-toolbar">
@@ -314,6 +276,7 @@
               </div>
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span id="matrix-count-badge" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">20 papers</span>
+                <button class="pill-button" onclick="expandAllMatrixRows()">↔ Expand / Collapse All</button>
                 <button class="pill-button" onclick="copyMatrixMarkdown()">📋 Copy Markdown Table</button>
                 <button class="pill-button" onclick="downloadMatrixCsv()">📊 Download CSV</button>
               </div>
@@ -323,11 +286,13 @@
               <table class="matrix-table">
                 <thead>
                   <tr>
-                    <th style="cursor: pointer;" onclick="sortMatrixBy('title')">Paper & Authors ⇕</th>
-                    <th style="cursor: pointer;" onclick="sortMatrixBy('methodology')">Proposed Methodology / Architecture ⇕</th>
-                    <th>Datasets & Benchmarks</th>
-                    <th>Key Results (Quant & Qual)</th>
-                    <th>Identified Limitations & Bottlenecks</th>
+                    <th style="cursor: pointer; min-width: 260px;" onclick="sortMatrixBy('title')">Paper & Authors ⇕</th>
+                    <th style="min-width: 170px;">Research Focus</th>
+                    <th style="cursor: pointer; min-width: 320px;" onclick="sortMatrixBy('methodology')">Proposed Methodology / Architecture ⇕</th>
+                    <th style="min-width: 220px;">Datasets & Benchmarks</th>
+                    <th style="min-width: 260px;">Key Results (Quant & Qual)</th>
+                    <th style="min-width: 260px;">Identified Limitations & Bottlenecks</th>
+                    <th style="min-width: 120px; text-align: center;">Deep Dive</th>
                   </tr>
                 </thead>
                 <tbody id="matrix-table-body">
@@ -338,22 +303,24 @@
           </div>
         </div>
 
-        <!-- TAB 4: Research Gaps -->
+        <!-- TAB 3: Research Gaps & Evidence -->
         <div id="tab-gaps" class="tab-content">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
             <div>
-              <h2 style="font-size: 1.3rem; font-weight: 700; color: #ffffff;">Critical Research Gaps & Open Challenges</h2>
-              <p style="font-size: 0.88rem; color: #94a3b8;">Synthesized cross-paper vulnerabilities supported by empirical citations</p>
+              <h2 style="font-size: 1.35rem; font-weight: 700; color: #ffffff;">Research Gaps for Each Paper</h2>
+              <p style="font-size: 0.88rem; color: #94a3b8;">Separate paper-by-paper gaps based on each paper’s available text. Page numbers are not shown.</p>
             </div>
-            <span id="gaps-count-badge" class="brand-badge" style="font-size: 0.82rem; padding: 4px 12px;">5 Research Gaps</span>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span id="gaps-count-badge" class="brand-badge" style="font-size: 0.82rem; padding: 4px 12px;">0 Papers Analyzed</span>
+            </div>
           </div>
 
           <div id="gaps-grid" class="gaps-grid">
-            <!-- Populated by gaps.js -->
+          <!-- Populated by gaps.js with one entry per paper -->
           </div>
         </div>
 
-        <!-- TAB 5: Research Report -->
+        <!-- TAB 4: Research Report -->
         <div id="tab-report" class="tab-content">
           <div class="report-layout">
             <!-- Dynamic Table of Contents Sidebar -->
@@ -391,10 +358,9 @@
   </main>
 
   <!-- Script Imports -->
-  <script src="/static/js/graph.js"></script>
-  <script src="/static/js/matrix.js"></script>
-  <script src="/static/js/gaps.js"></script>
-  <script src="/static/js/report.js"></script>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/matrix.js?v=3"></script>
+  <script src="/static/js/gaps.js?v=3"></script>
+  <script src="/static/js/report.js?v=2"></script>
+  <script src="/static/js/app.js?v=3"></script>
 </body>
 </html>

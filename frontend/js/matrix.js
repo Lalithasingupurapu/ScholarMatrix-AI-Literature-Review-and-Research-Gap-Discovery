@@ -1,13 +1,32 @@
 // ==========================================================================
-// Literature-Review Matrix Controller
+// ScholarMatrix AI - Enlarged Literature-Review Matrix Controller
 // ==========================================================================
 
 let currentMatrixData = [];
 let matrixSortField = 'citations';
 let matrixSortAsc = false;
+let expandedRowIds = new Set();
 
 function renderLiteratureMatrix(matrix) {
   currentMatrixData = matrix || [];
+  applyMatrixFilters();
+}
+
+function toggleMatrixRow(rowId) {
+  if (expandedRowIds.has(rowId)) {
+    expandedRowIds.delete(rowId);
+  } else {
+    expandedRowIds.add(rowId);
+  }
+  applyMatrixFilters();
+}
+
+function expandAllMatrixRows() {
+  if (expandedRowIds.size === currentMatrixData.length) {
+    expandedRowIds.clear();
+  } else {
+    expandedRowIds = new Set(currentMatrixData.map(r => r.paper_id));
+  }
   applyMatrixFilters();
 }
 
@@ -20,10 +39,13 @@ function applyMatrixFilters() {
     return (
       (row.title || '').toLowerCase().includes(query) ||
       (row.authors || '').toLowerCase().includes(query) ||
+      (row.research_focus || '').toLowerCase().includes(query) ||
       (row.methodology || '').toLowerCase().includes(query) ||
       (row.datasets || '').toLowerCase().includes(query) ||
+      (row.metrics_and_baselines || '').toLowerCase().includes(query) ||
       (row.results || '').toLowerCase().includes(query) ||
-      (row.limitations || '').toLowerCase().includes(query)
+      (row.limitations || '').toLowerCase().includes(query) ||
+      (row.future_scope || '').toLowerCase().includes(query)
     );
   });
 
@@ -42,40 +64,111 @@ function applyMatrixFilters() {
   if (!tbody) return;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 32px;">No matching papers in matrix.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 48px;">No matching papers found in matrix.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(row => `
-    <tr>
-      <td class="col-paper">
-        <div style="font-weight: 700; color: #ffffff; margin-bottom: 4px;">${escapeHtml(row.title)}</div>
-        <div style="font-size: 0.8rem; color: #94a3b8;">${escapeHtml(row.authors)} (${row.year})</div>
-        <div style="margin-top: 6px; display: flex; gap: 6px;">
-          <span class="paper-cite-badge" style="font-size: 0.75rem; padding: 1px 6px;">★ ${row.citations}</span>
-          <a href="${row.pdf_url || row.url || '#'}" target="_blank" style="color: #6366f1; text-decoration: none; font-size: 0.75rem;">Link ↗</a>
-        </div>
-      </td>
-      <td class="col-method">
-        <div>${escapeHtml(row.methodology)}</div>
-      </td>
-      <td class="col-datasets">
-        <span style="background: rgba(167, 139, 250, 0.12); color: #c4b5fd; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.82rem;">
-          ${escapeHtml(row.datasets)}
-        </span>
-      </td>
-      <td class="col-results">
-        <div>${escapeHtml(row.results)}</div>
-      </td>
-      <td class="col-limitations">
-        <div>${escapeHtml(row.limitations)}</div>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = filtered.map((row, index) => {
+    const isExpanded = expandedRowIds.has(row.paper_id);
+    const linkUrl = row.pdf_url || row.url || '#';
+
+    return `
+      <!-- Main Row -->
+      <tr class="matrix-row ${isExpanded ? 'row-expanded' : ''}" id="matrix-row-${row.paper_id}">
+        <!-- Col 1: Paper & Metadata -->
+        <td class="col-paper">
+          <div class="matrix-paper-title">${escapeHtml(row.title)}</div>
+          <div class="matrix-author-line">${escapeHtml(row.authors)} (${row.year || 'Year unavailable'})</div>
+          <div class="matrix-author-line">${escapeHtml(row.source_scope || '')}</div>
+          <div class="matrix-paper-badges">
+            <span class="paper-cite-badge" title="Citation count">${row.citations == null ? 'Citations unavailable' : `★ ${row.citations}`}</span>
+            <span class="venue-pill">${escapeHtml(row.venue || 'Peer-reviewed')}</span>
+            <a href="${linkUrl}" target="_blank" rel="noopener noreferrer" class="link-btn">Access ↗</a>
+          </div>
+        </td>
+
+        <!-- Col 2: Research Focus -->
+        <td class="col-focus">
+          <div class="focus-pill">${escapeHtml(row.research_focus || 'Not reported in available paper text.')}</div>
+        </td>
+
+        <!-- Col 3: Methodology (Enlarged) -->
+        <td class="col-method">
+          <div class="method-text">${escapeHtml(row.methodology)}</div>
+        </td>
+
+        <!-- Col 4: Datasets, Benchmarks & Metrics -->
+        <td class="col-datasets">
+          <div class="dataset-tags-wrap">
+            <span class="dataset-badge">${escapeHtml(row.datasets)}</span>
+          </div>
+          ${row.metrics_and_baselines ? `
+            <div class="metrics-micro-line">
+              <span>${escapeHtml(row.metrics_and_baselines)}</span>
+            </div>
+          ` : ''}
+        </td>
+
+        <!-- Col 5: Key Results (Enlarged) -->
+        <td class="col-results">
+          <div class="results-text">${escapeHtml(row.results)}</div>
+        </td>
+
+        <!-- Col 6: Limitations & Vulnerabilities (Enlarged) -->
+        <td class="col-limitations">
+          <div class="limitations-text">${escapeHtml(row.limitations)}</div>
+        </td>
+
+        <!-- Col 7: Deep Dive Action -->
+        <td class="col-action" style="text-align: center;">
+          <button class="pill-button detail-toggle-btn ${isExpanded ? 'active' : ''}" onclick="toggleMatrixRow('${row.paper_id}')" title="Inspect full paper abstract, metrics and future scope">
+            ${isExpanded ? '▲ Hide' : '🔍 Deep Dive'}
+          </button>
+        </td>
+      </tr>
+
+      <!-- Deep Dive Expandable Drawer Row -->
+      ${isExpanded ? `
+        <tr class="matrix-drawer-row">
+          <td colspan="7">
+            <div class="matrix-deep-dive-panel">
+              <div class="deep-dive-header">
+                <span class="deep-dive-tag">COMPREHENSIVE SCHOLARLY DEEP-DIVE</span>
+                <span style="font-size: 0.78rem; color: #94a3b8;">${escapeHtml(row.title)}</span>
+              </div>
+
+              <div class="deep-dive-grid">
+                <!-- Abstract Box -->
+                <div class="deep-dive-box">
+                  <div class="box-title">📄 Original Abstract & Synthesis Context</div>
+                  <p class="box-content abstract-text">${escapeHtml(row.abstract || 'Abstract not available from the selected source.')}</p>
+                </div>
+
+                <!-- Experimental Setup & Future Scope -->
+                <div class="deep-dive-box">
+                  <div class="box-title">🔬 Evaluation Configuration & Baselines</div>
+                  <p class="box-content" style="margin-bottom: 12px;">${escapeHtml(row.metrics_and_baselines || 'Not reported in available paper text.')}</p>
+
+                  <div class="box-title" style="color: #34d399;">✦ Strategic Future Scope & Open Directions</div>
+                  <p class="box-content">${escapeHtml(row.future_scope || 'No explicit future-work statement found in available paper text.')}</p>
+
+                  <div style="margin-top: 14px; display: flex; gap: 10px;">
+                    <a href="${linkUrl}" target="_blank" class="cta-btn-sm">
+                      <span>Open Full Manuscript ↗</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      ` : ''}
+    `;
+  }).join('');
 
   const countBadge = document.getElementById('matrix-count-badge');
   if (countBadge) {
-    countBadge.innerText = `${filtered.length} of ${currentMatrixData.length} papers`;
+    countBadge.innerText = `${filtered.length} of ${currentMatrixData.length} papers analyzed`;
   }
 }
 
@@ -92,15 +185,15 @@ function sortMatrixBy(field) {
 function copyMatrixMarkdown() {
   if (!currentMatrixData || currentMatrixData.length === 0) return;
 
-  let md = '| Paper & Authors | Year | Methodology | Datasets | Key Results | Limitations |\n';
-  md += '| :--- | :--- | :--- | :--- | :--- | :--- |\n';
+  let md = '| Paper & Authors | Year | Research Focus | Methodology | Datasets & Benchmarks | Key Results | Limitations & Bottlenecks |\n';
+  md += '| :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n';
 
   currentMatrixData.forEach(row => {
-    md += `| ${row.title} (${row.authors}) | ${row.year} | ${row.methodology} | ${row.datasets} | ${row.results} | ${row.limitations} |\n`;
+    md += `| ${row.title} (${row.authors}) | ${row.year} | ${row.research_focus} | ${row.methodology} | ${row.datasets} | ${row.results} | ${row.limitations} |\n`;
   });
 
   navigator.clipboard.writeText(md).then(() => {
-    showToast('Literature Matrix copied as Markdown table!');
+    showToast('Enlarged Literature Matrix copied as Markdown table!');
   });
 }
 

@@ -11,7 +11,11 @@ class ExportService:
         Exports the literature matrix as a CSV formatted string.
         """
         output = io.StringIO()
-        fieldnames = ["Paper ID", "Title", "Authors", "Year", "Venue", "Citations", "Methodology", "Datasets", "Key Results", "Limitations", "URL"]
+        fieldnames = [
+            "Paper ID", "Title", "Authors", "Year", "Venue", "Citations",
+            "Research Focus", "Methodology", "Datasets", "Metrics & Baselines",
+            "Key Results", "Limitations", "Future Scope", "URL"
+        ]
         writer = csv.DictWriter(output, fieldnames=fieldnames, quoting=csv.QUOTE_ALL)
         writer.writeheader()
 
@@ -23,10 +27,13 @@ class ExportService:
                 "Year": row.get("year", ""),
                 "Venue": row.get("venue", ""),
                 "Citations": row.get("citations", 0),
+                "Research Focus": row.get("research_focus", ""),
                 "Methodology": row.get("methodology", ""),
                 "Datasets": row.get("datasets", ""),
+                "Metrics & Baselines": row.get("metrics_and_baselines", ""),
                 "Key Results": row.get("results", ""),
                 "Limitations": row.get("limitations", ""),
+                "Future Scope": row.get("future_scope", ""),
                 "URL": row.get("url", "")
             })
 

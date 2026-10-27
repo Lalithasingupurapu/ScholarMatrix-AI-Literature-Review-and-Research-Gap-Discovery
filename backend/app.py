@@ -12,15 +12,14 @@ from pydantic import BaseModel
 from backend.config import UPLOAD_DIR
 from backend.services.paper_fetcher import PaperFetcher
 from backend.services.pdf_parser import PDFParser
-from backend.services.citation_graph import CitationGraphBuilder
 from backend.services.matrix_generator import LiteratureMatrixGenerator
 from backend.services.gap_analyzer import ResearchGapAnalyzer
 from backend.services.report_generator import ResearchReportGenerator
 from backend.services.export_service import ExportService
 
 app = FastAPI(
-    title="LitAutoResearch API",
-    description="Autonomous Literature Review & Research Assistant Engine",
+    title="ScholarMatrix AI API",
+    description="Autonomous Literature Review & Research Gap Discovery Engine",
     version="1.0.0"
 )
 
@@ -36,7 +35,6 @@ app.add_middleware(
 # Services
 paper_fetcher = PaperFetcher()
 pdf_parser = PDFParser()
-graph_builder = CitationGraphBuilder()
 matrix_generator = LiteratureMatrixGenerator()
 gap_analyzer = ResearchGapAnalyzer()
 report_generator = ResearchReportGenerator()
@@ -46,7 +44,6 @@ latest_review_cache = {
     "topic": "Retrieval-Augmented Generation (RAG)",
     "research_question": "How can RAG reduce AI hallucinations?",
     "papers": [],
-    "graph": {},
     "matrix": [],
     "gaps": [],
     "report": {}
@@ -67,7 +64,7 @@ class FullReviewRequest(BaseModel):
 def health_check():
     return {
         "status": "healthy",
-        "service": "LitAutoResearch",
+        "service": "ScholarMatrix AI",
         "version": "1.0.0",
         "ready": True
     }
@@ -137,7 +134,7 @@ def generate_full_review(req: FullReviewRequest):
     1. Fetches/extracts papers (Online Search OR Uploaded PDFs)
     2. Builds interactive citation & conceptual graph
     3. Generates comparative literature matrix
-    4. Synthesizes evidenced research gaps
+    4. Extracts paper-specific research gaps from each paper's available text
     5. Compiles comprehensive academic literature review report
     """
     topic = req.topic.strip()
@@ -182,23 +179,26 @@ def generate_full_review(req: FullReviewRequest):
         )
         papers.extend(fetched)
         if not papers:
-            papers = paper_fetcher.fetch_papers(topic, question, start_year, end_year, num_papers)
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Live search returned no papers. Please retry or choose PDF upload; "
+                    "the app will not substitute unrelated sample papers."
+                )
+            )
 
     # Ensure paper count matches target and sequential IDs
     papers = papers[:num_papers]
     for idx, p in enumerate(papers):
         p["id"] = f"paper_{idx + 1}"
 
-    # Step 2: Build Citation Graph
-    graph_data = graph_builder.build_graph(papers)
-
-    # Step 3: Generate Literature-Review Matrix
+    # Step 2: Generate Literature-Review Matrix
     matrix_data = matrix_generator.generate_matrix(papers, question)
 
-    # Step 4: Synthesize Research Gaps
+    # Step 3: Extract one evidence-grounded research gap per paper
     gaps_data = gap_analyzer.analyze_gaps(papers, topic, question)
 
-    # Step 5: Compile Academic Literature Review Report
+    # Step 4: Compile Academic Literature Review Report
     report_data = report_generator.generate_report(
         topic=topic,
         research_question=question,
@@ -206,17 +206,22 @@ def generate_full_review(req: FullReviewRequest):
         matrix=matrix_data,
         gaps=gaps_data,
         start_year=start_year,
-        end_year=end_year
+        end_year=end_year,
+        source_mode=req.mode
     )
 
     # Cache for direct exports
     latest_review_cache["topic"] = topic
     latest_review_cache["research_question"] = question
     latest_review_cache["papers"] = papers
-    latest_review_cache["graph"] = graph_data
     latest_review_cache["matrix"] = matrix_data
     latest_review_cache["gaps"] = gaps_data
     latest_review_cache["report"] = report_data
+
+    public_papers = [
+        {key: value for key, value in paper.items() if key != "extracted_text"}
+        for paper in papers
+    ]
 
     return {
         "meta": {
@@ -226,8 +231,7 @@ def generate_full_review(req: FullReviewRequest):
             "papers_analyzed": len(papers),
             "mode": req.mode
         },
-        "papers_list": papers,
-        "citation_graph": graph_data,
+        "papers_list": public_papers,
         "literature_matrix": matrix_data,
         "research_gaps": gaps_data,
         "research_report": report_data
@@ -282,5 +286,12 @@ if frontend_dir.exists():
     def serve_index():
         index_file = frontend_dir / "index.html"
         if index_file.exists():
-            return FileResponse(str(index_file))
-        return HTMLResponse("<h1>LitAutoResearch Frontend Loading...</h1>")
+            return FileResponse(
+                str(index_file),
+                headers={
+                    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                    "Pragma": "no-cache",
+                    "Expires": "0"
+                }
+            )
+        return HTMLResponse("<h1>ScholarMatrix AI Frontend Loading...</h1>")
