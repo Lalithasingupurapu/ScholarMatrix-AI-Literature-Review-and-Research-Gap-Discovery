@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from collections import Counter
 from pathlib import Path
 from typing import List, Optional
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response
@@ -39,6 +40,9 @@ matrix_generator = LiteratureMatrixGenerator()
 gap_analyzer = ResearchGapAnalyzer()
 report_generator = ResearchReportGenerator()
 
+DEFAULT_TOPIC = "Retrieval-Augmented Generation (RAG)"
+DEFAULT_RESEARCH_QUESTION = "How can RAG reduce AI hallucinations?"
+
 # In-memory session cache for latest generated review
 latest_review_cache = {
     "topic": "Retrieval-Augmented Generation (RAG)",
@@ -48,6 +52,44 @@ latest_review_cache = {
     "gaps": [],
     "report": {}
 }
+
+
+def _infer_pdf_topic(papers: List[dict]) -> str:
+    titles = [paper.get("title", "").strip() for paper in papers if paper.get("title", "").strip()]
+    if not titles:
+        return "Uploaded research papers"
+    if len(titles) == 1:
+        return titles[0]
+
+    stop_words = {
+        "about", "across", "an", "and", "are", "as", "at", "based", "by", "for",
+        "from", "in", "into", "is", "of", "on", "or", "the", "their", "through",
+        "to", "toward", "using", "via", "with",
+    }
+    words_by_title = [
+        [
+            word for word in re.findall(r"[A-Za-z][A-Za-z0-9-]*", title)
+            if word.casefold() not in stop_words and len(word) > 2
+        ]
+        for title in titles
+    ]
+    title_counts = Counter(
+        word.casefold()
+        for words in words_by_title
+        for word in set(words)
+    )
+    shared_words = {
+        word for word, count in title_counts.items()
+        if count > 1
+    }
+    if shared_words:
+        topic_words = [
+            word for word in words_by_title[0]
+            if word.casefold() in shared_words
+        ]
+        if topic_words:
+            return " ".join(dict.fromkeys(topic_words))
+    return titles[0]
 
 
 class FullReviewRequest(BaseModel):
@@ -68,6 +110,21 @@ def health_check():
         "version": "1.0.0",
         "ready": True
     }
+
+
+@app.get("/api/uploads/{filename}")
+def get_uploaded_pdf(filename: str):
+    pdf_path = (UPLOAD_DIR / filename).resolve()
+    if pdf_path.parent != UPLOAD_DIR.resolve() or pdf_path.suffix.lower() != ".pdf":
+        raise HTTPException(status_code=404, detail="Uploaded PDF not found.")
+    if not pdf_path.is_file():
+        raise HTTPException(status_code=404, detail="Uploaded PDF not found.")
+    return FileResponse(
+        str(pdf_path),
+        media_type="application/pdf",
+        filename=pdf_path.name,
+        content_disposition_type="inline"
+    )
 
 
 @app.get("/api/uploaded-pdfs")
@@ -167,6 +224,14 @@ def generate_full_review(req: FullReviewRequest):
             raise HTTPException(
                 status_code=400,
                 detail="No uploaded PDF files found. Please drop your PDF manuscripts into the upload zone first."
+            )
+
+        if not topic or topic == DEFAULT_TOPIC:
+            topic = _infer_pdf_topic(papers)
+        if not question or question == DEFAULT_RESEARCH_QUESTION:
+            question = (
+                f"What methods, findings, and limitations do the uploaded papers "
+                f"report about {topic}?"
             )
     else:
         # Online mode (arXiv & OpenAlex)

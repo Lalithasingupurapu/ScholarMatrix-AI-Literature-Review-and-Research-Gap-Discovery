@@ -322,6 +322,10 @@ async function startReviewGeneration() {
     }
     const data = await res.json();
     fullReviewState = data;
+    if (activeMode === 'pdf' && data.meta) {
+      document.getElementById('input-topic').value = data.meta.topic;
+      document.getElementById('input-question').value = data.meta.research_question;
+    }
 
     // Complete all progress steps
     completeAllSteps();

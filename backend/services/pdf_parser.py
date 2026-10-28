@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
+from urllib.parse import quote
 import pypdf
 
 
@@ -75,8 +76,8 @@ class PDFParser:
             "abstract": abstract,
             "extracted_text": full_text[:100000],
             "text_extraction_scope": f"First {min(num_pages, 100)} pages",
-            "url": f"file:///{path.resolve()}",
-            "pdf_url": f"file:///{path.resolve()}",
+            "url": f"/api/uploads/{quote(path.name)}",
+            "pdf_url": f"/api/uploads/{quote(path.name)}",
             "page_count": num_pages if 'num_pages' in locals() else 1,
             "page_evidence": page_evidence,
             "referenced_works": [],
