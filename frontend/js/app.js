@@ -21,29 +21,57 @@ document.addEventListener('DOMContentLoaded', () => {
 const PRESETS = {
   rag: {
     topic: "Retrieval-Augmented Generation (RAG)",
-    question: "How can RAG reduce AI hallucinations?",
+    question: "Does retrieval-augmented generation help AI give more accurate answers?",
     startYear: 2021,
     endYear: 2026,
     papers: 20
   },
-  diffusion: {
-    topic: "Diffusion Models for Medical Imaging",
-    question: "Can latent diffusion reduce MRI acquisition artifacts and reconstruction noise?",
-    startYear: 2021,
+  healthcare: {
+    topic: "Exercise and Blood Pressure",
+    question: "Does regular exercise help lower blood pressure in adults?",
+    startYear: 2020,
     endYear: 2026,
     papers: 15
   },
-  cot: {
-    topic: "Chain-of-Thought Reasoning in LLMs",
-    question: "How does step-by-step reasoning affect mathematical problem-solving faithfulness?",
-    startYear: 2022,
+  electrical: {
+    topic: "Solar Energy Use in Homes",
+    question: "How can rooftop solar panels reduce household electricity use?",
+    startYear: 2020,
     endYear: 2026,
     papers: 15
   },
-  hybrid_search: {
-    topic: "Sparse-Dense Hybrid Search & Vector Databases",
-    question: "What are the retrieval accuracy trade-offs between BM25 and neural cross-encoders?",
-    startYear: 2021,
+  business: {
+    topic: "Social Media Marketing for Small Businesses",
+    question: "Does social media marketing help small businesses increase sales?",
+    startYear: 2020,
+    endYear: 2026,
+    papers: 15
+  },
+  agriculture: {
+    topic: "Drip Irrigation and Crop Production",
+    question: "Can drip irrigation help farmers use less water while growing crops?",
+    startYear: 2020,
+    endYear: 2026,
+    papers: 15
+  },
+  environment: {
+    topic: "Plastic Pollution in Freshwater",
+    question: "How does plastic pollution affect rivers and lakes?",
+    startYear: 2020,
+    endYear: 2026,
+    papers: 15
+  },
+  education: {
+    topic: "Online Learning in Schools",
+    question: "Does online learning help students improve their academic performance?",
+    startYear: 2020,
+    endYear: 2026,
+    papers: 15
+  },
+  civil_engineering: {
+    topic: "Recycled Materials in Concrete",
+    question: "Can recycled materials be used to make strong concrete?",
+    startYear: 2020,
     endYear: 2026,
     papers: 15
   }
@@ -225,7 +253,7 @@ function renderUploadedChips() {
         <span>✓</span> ${uploadedPdfs.length} Research Paper PDF(s) Loaded & Ready
       </span>
       <button class="pill-button" onclick="clearUploadedPdfs(event)" style="font-size: 0.72rem; padding: 2px 8px;">
-        ✕ Clear
+        ✕ Clear & Delete
       </button>
     </div>
     <div style="display: flex; flex-wrap: wrap; gap: 8px; width: 100%;">
@@ -240,11 +268,33 @@ function renderUploadedChips() {
   `;
 }
 
-function clearUploadedPdfs(e) {
+async function clearUploadedPdfs(e) {
   if (e) e.stopPropagation();
-  uploadedPdfs = [];
-  renderUploadedChips();
-  showToast('Uploaded PDFs list cleared.');
+
+  if (!window.confirm("Delete all uploaded PDF files from this app's uploads folder? This cannot be undone.")) {
+    return;
+  }
+
+  const clearButton = e?.currentTarget;
+  if (clearButton) clearButton.disabled = true;
+
+  try {
+    const res = await fetch('/api/uploaded-pdfs', { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || 'Failed to delete uploaded PDF files.');
+    }
+
+    uploadedPdfs = [];
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+    renderUploadedChips();
+    showToast(`${data.deleted_count} uploaded PDF file(s) deleted.`);
+  } catch (err) {
+    console.error(err);
+    showToast(`Could not clear uploaded PDFs: ${err.message}`, 'error');
+    if (clearButton) clearButton.disabled = false;
+  }
 }
 
 function initTabs() {

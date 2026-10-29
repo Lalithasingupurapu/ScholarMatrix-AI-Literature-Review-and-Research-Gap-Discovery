@@ -68,8 +68,9 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
 1. Select **Live Online Search** or **Upload PDF Files**.
 2. Enter a research topic and question, and set the year range and paper count.
 3. For PDF mode, upload or select the PDFs to include.
-4. Click **Generate Literature Review**. The generated outputs use the papers selected for that run.
-5. Browse the papers, matrix, paper-specific gaps, and report. Use the CSV and Markdown export options as needed.
+4. Use **Clear & Delete** to remove all uploaded PDFs from the app's local uploads folder and reset the current PDF selection.
+5. Click **Generate Literature Review**. The generated outputs use the papers selected for that run.
+6. Browse the papers, matrix, paper-specific gaps, and report. Use the CSV and Markdown export options as needed.
 
 ## Evidence and extraction notes
 
@@ -85,6 +86,7 @@ python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
 |---|---|---|
 | `GET` | `/api/health` | Check service health |
 | `GET` | `/api/uploaded-pdfs` | List and parse PDFs already in the uploads directory |
+| `DELETE` | `/api/uploaded-pdfs` | Delete all PDFs stored in the uploads directory |
 | `POST` | `/api/upload-pdfs` | Upload and parse PDF files |
 | `POST` | `/api/generate-full-review` | Generate outputs from online search or selected PDFs |
 | `GET` | `/api/export/csv` | Download the latest literature matrix as CSV |

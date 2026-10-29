@@ -152,6 +152,32 @@ def get_uploaded_pdfs():
     }
 
 
+@app.delete("/api/uploaded-pdfs")
+def delete_uploaded_pdfs():
+    """Delete all PDF files currently stored in the uploads directory."""
+    pdf_files = list(UPLOAD_DIR.glob("*.pdf"))
+    deleted_count = 0
+    failed_files = []
+
+    for pdf_file in pdf_files:
+        try:
+            pdf_file.unlink()
+            deleted_count += 1
+        except OSError as e:
+            failed_files.append(f"{pdf_file.name}: {e}")
+
+    if failed_files:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Deleted {deleted_count} PDF file(s), but could not delete: "
+                + "; ".join(failed_files)
+            )
+        )
+
+    return {"deleted_count": deleted_count}
+
+
 @app.post("/api/upload-pdfs")
 async def upload_pdfs(files: List[UploadFile] = File(...)):
     """

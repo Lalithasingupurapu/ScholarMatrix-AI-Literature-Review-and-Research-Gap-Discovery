@@ -19,7 +19,7 @@
   <meta http-equiv="Expires" content="0">
 
   <!-- Application CSS -->
-  <link rel="stylesheet" href="/static/css/style.css?v=2">
+  <link rel="stylesheet" href="/static/css/style.css?v=3">
 </head>
 <body>
 
@@ -40,7 +40,7 @@
             ScholarMatrix AI
             <span class="brand-badge">ACADEMIC AI</span>
           </div>
-          <div style="font-size: 0.75rem; color: #64748b; font-weight: 500;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
             Autonomous Literature Review & Research Gap Discovery
           </div>
         </div>
@@ -81,7 +81,7 @@
             <div class="form-group">
               <label class="form-label" for="input-topic">
                 <span>Research Topic</span>
-                <span style="font-size: 0.72rem; color: #64748b;">Primary Field</span>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">Primary Field</span>
               </label>
               <input 
                 type="text" 
@@ -96,7 +96,7 @@
             <div class="form-group">
               <label class="form-label" for="input-question">
                 <span>Research Question</span>
-                <span style="font-size: 0.72rem; color: #64748b;">Core Inquiry</span>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">Core Inquiry</span>
               </label>
               <input 
                 type="text" 
@@ -111,11 +111,11 @@
             <div class="form-group">
               <label class="form-label">
                 <span>Publication Year</span>
-                <span style="font-size: 0.72rem; color: #64748b;">Range</span>
+                <span style="font-size: 0.72rem; color: var(--text-dim);">Range</span>
               </label>
               <div class="year-inputs">
                 <input type="number" id="input-start-year" class="form-input year-input" value="2021" min="2010" max="2030">
-                <span style="color: #64748b;">—</span>
+                <span style="color: var(--text-dim);">—</span>
                 <input type="number" id="input-end-year" class="form-input year-input" value="2026" min="2010" max="2030">
               </div>
             </div>
@@ -137,17 +137,30 @@
             <div class="preset-row">
               <span class="preset-title">QUICK PRESETS:</span>
               <button class="pill-button preset-btn active" data-preset="rag">
-                🔍 RAG & Hallucination Mitigation
+                🤖 AI & Computing
               </button>
-              <button class="pill-button preset-btn" data-preset="diffusion">
-                🧬 Diffusion in Medical Imaging
+              <button class="pill-button preset-btn" data-preset="healthcare">
+                🩺 Healthcare
               </button>
-              <button class="pill-button preset-btn" data-preset="cot">
-                🧠 Chain-of-Thought Reasoning
+              <button class="pill-button preset-btn" data-preset="electrical">
+                ⚡ Electrical Engineering
               </button>
-              <button class="pill-button preset-btn" data-preset="hybrid_search">
-                ⚡ Sparse vs Dense Hybrid Search
+              <button class="pill-button preset-btn" data-preset="business">
+                📈 Business
               </button>
+              <button class="pill-button preset-btn" data-preset="agriculture">
+                🌱 Agriculture
+              </button>
+              <button class="pill-button preset-btn" data-preset="environment">
+                🌍 Environment
+              </button>
+              <button class="pill-button preset-btn" data-preset="education">
+                📚 Education
+              </button>
+              <button class="pill-button preset-btn" data-preset="civil_engineering">
+                🏗️ Civil Engineering
+              </button>
+              <p class="preset-note">Choose a field to fill in a sample topic and question. Online search uses available paper details and abstracts; upload a freely accessible PDF for full-text analysis.</p>
             </div>
 
             <div style="min-width: 280px;">
@@ -193,7 +206,7 @@
             <span class="spinner"></span>
             <span>ScholarMatrix Literature Review Pipeline</span>
           </div>
-          <span style="font-size: 0.8rem; color: #818cf8;">Autonomous Scholarly Synthesis</span>
+          <span style="font-size: 0.8rem; color: var(--primary-hover);">Autonomous Scholarly Synthesis</span>
         </div>
         <div class="progress-steps">
           <div class="step-item active">
@@ -252,7 +265,7 @@
                 oninput="filterPapersList()"
               >
             </div>
-            <div id="papers-count-badge" style="font-size: 0.88rem; color: #94a3b8; font-weight: 600;">
+            <div id="papers-count-badge" style="font-size: 0.88rem; color: var(--text-muted); font-weight: 600;">
               20 Papers Found
             </div>
           </div>
@@ -275,7 +288,7 @@
                 >
               </div>
               <div style="display: flex; align-items: center; gap: 10px;">
-                <span id="matrix-count-badge" style="font-size: 0.85rem; color: #94a3b8; font-weight: 600;">20 papers</span>
+                <span id="matrix-count-badge" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">20 papers</span>
                 <button class="pill-button" onclick="expandAllMatrixRows()">↔ Expand / Collapse All</button>
                 <button class="pill-button" onclick="copyMatrixMarkdown()">📋 Copy Markdown Table</button>
                 <button class="pill-button" onclick="downloadMatrixCsv()">📊 Download CSV</button>
@@ -307,8 +320,8 @@
         <div id="tab-gaps" class="tab-content">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
             <div>
-              <h2 style="font-size: 1.35rem; font-weight: 700; color: #ffffff;">Research Gaps for Each Paper</h2>
-              <p style="font-size: 0.88rem; color: #94a3b8;">Separate paper-by-paper gaps based on each paper’s available text. Page numbers are not shown.</p>
+              <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-main);">Research Gaps for Each Paper</h2>
+              <p style="font-size: 0.88rem; color: var(--text-muted);">Separate paper-by-paper gaps based on each paper’s available text. Page numbers are not shown.</p>
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
               <span id="gaps-count-badge" class="brand-badge" style="font-size: 0.82rem; padding: 4px 12px;">0 Papers Analyzed</span>
@@ -361,6 +374,6 @@
   <script src="/static/js/matrix.js?v=3"></script>
   <script src="/static/js/gaps.js?v=3"></script>
   <script src="/static/js/report.js?v=2"></script>
-  <script src="/static/js/app.js?v=3"></script>
+  <script src="/static/js/app.js?v=5"></script>
 </body>
 </html>
