@@ -720,6 +720,22 @@ body {
   margin-bottom: 12px;
 }
 
+.paper-evidence-scope {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+}
+
+.paper-extraction-warning {
+  background: rgba(179, 138, 80, 0.1);
+  border: 1px solid rgba(179, 138, 80, 0.25);
+  border-radius: 8px;
+  color: #806334;
+  font-size: 0.78rem;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+}
+
 .paper-abstract {
   font-size: 0.88rem;
   color: #cbd5e1;

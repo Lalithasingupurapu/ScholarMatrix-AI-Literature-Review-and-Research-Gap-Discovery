@@ -1,4 +1,5 @@
 import re
+from io import BytesIO
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from urllib.parse import quote
@@ -17,45 +18,48 @@ class PDFParser:
         if not path.exists():
             raise FileNotFoundError(f"PDF file not found: {file_path}")
 
-        full_text = ""
-        first_page_text = ""
-        last_pages_text = ""
+        reader = pypdf.PdfReader(str(path))
+        return self._parse_reader(
+            reader, filename or path.name, path.stat().st_size, path.name
+        )
 
-        try:
-            reader = pypdf.PdfReader(str(path))
-            num_pages = len(reader.pages)
+    def parse_pdf_bytes(self, content: bytes, filename: str = "") -> Dict[str, Any]:
+        """Parse PDF bytes without writing a temporary file."""
+        reader = pypdf.PdfReader(BytesIO(content))
+        return self._parse_reader(reader, filename, len(content), "")
 
-            # Read first page
-            if num_pages > 0:
-                first_page_text = reader.pages[0].extract_text() or ""
+    def _parse_reader(
+        self,
+        reader: Any,
+        filename: str,
+        file_size: int,
+        stored_filename: str,
+    ) -> Dict[str, Any]:
+        num_pages = len(reader.pages)
+        page_records = []
+        for index, page in enumerate(reader.pages):
+            page_records.append({
+                "page": index + 1,
+                "text": page.extract_text() or "",
+            })
 
-            # Extract enough of each manuscript to cover methods, evaluation, and limitations.
-            pages_to_read = min(num_pages, 100)
-            extracted_pages = []
-            page_records = []
-            for i in range(pages_to_read):
-                p_text = reader.pages[i].extract_text() or ""
-                extracted_pages.append(p_text)
-                page_records.append({
-                    "page": i + 1,
-                    "text": p_text
-                })
-
-            full_text = "\n".join(extracted_pages)
-            if num_pages > 1:
-                last_pages_text = "\n".join(extracted_pages[-2:])
-        except Exception as e:
-            full_text = f"Error reading PDF content: {str(e)}"
-            page_records = []
+        full_text = "\n\n".join(record["text"] for record in page_records)
+        first_page_text = page_records[0]["text"] if page_records else ""
+        last_pages_text = "\n\n".join(
+            record["text"] for record in page_records[-2:]
+        )
+        pages_with_text = sum(
+            bool(record["text"].strip()) for record in page_records
+        )
 
         # 1. Title Extraction
-        title = self._extract_title(reader.metadata if 'reader' in locals() else None, first_page_text, filename)
+        title = self._extract_title(reader.metadata, first_page_text, filename)
 
         # 2. Year Extraction
         year = self._extract_year(first_page_text, full_text)
 
         # 3. Authors Extraction
-        authors = self._extract_authors(reader.metadata if 'reader' in locals() else None, first_page_text)
+        authors = self._extract_authors(reader.metadata, first_page_text)
 
         # 4. Abstract Extraction
         abstract = self._extract_abstract(first_page_text, full_text)
@@ -67,23 +71,40 @@ class PDFParser:
         page_evidence = self._extract_page_evidence(page_records)
 
         return {
-            "id": f"pdf_{path.stem[:20]}",
+            "id": f"pdf_{Path(stored_filename or filename).stem[:20]}",
             "title": title,
             "authors": authors,
             "year": year,
             "venue": "Uploaded PDF Manuscript",
             "citation_count": None,
             "abstract": abstract,
-            "extracted_text": full_text[:100000],
-            "text_extraction_scope": f"First {min(num_pages, 100)} pages",
-            "url": f"/api/uploads/{quote(path.name)}",
-            "pdf_url": f"/api/uploads/{quote(path.name)}",
-            "page_count": num_pages if 'num_pages' in locals() else 1,
+            "extracted_text": full_text,
+            "text_extraction_scope": (
+                f"All {num_pages} pages (selectable text)"
+                if pages_with_text == num_pages and num_pages > 0
+                else f"Selectable text on {pages_with_text} of {num_pages} pages"
+                if pages_with_text
+                else f"No selectable text found across {num_pages} pages"
+            ),
+            "text_extraction_warnings": (
+                [
+                    "No selectable text was extracted. This PDF may be scanned or image-only; OCR is not configured."
+                ]
+                if not pages_with_text
+                else [
+                    f"No selectable text was extracted from {num_pages - pages_with_text} page(s); OCR may be needed for image-only pages."
+                ]
+                if pages_with_text < num_pages
+                else []
+            ),
+            "url": f"/api/uploads/{quote(stored_filename)}" if stored_filename else "",
+            "pdf_url": f"/api/uploads/{quote(stored_filename)}" if stored_filename else "",
+            "page_count": num_pages,
             "page_evidence": page_evidence,
             "referenced_works": [],
             "raw_references": references[:15],
             "source": "Uploaded PDF",
-            "file_size_kb": round(path.stat().st_size / 1024, 1)
+            "file_size_kb": round(file_size / 1024, 1)
         }
 
     def _extract_page_evidence(self, page_records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

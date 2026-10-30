@@ -89,6 +89,7 @@ function initPresets() {
         document.getElementById('input-end-year').value = data.endYear;
         document.getElementById('input-num-papers').value = data.papers;
         document.getElementById('range-val-badge').innerText = data.papers;
+        setSourceMode('online');
 
         document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
@@ -229,10 +230,7 @@ async function handleFilesUpload(files) {
       rangeBadge.innerText = numSlider.value;
     }
 
-    if (activeMode === 'pdf') {
-      showToast('PDFs are ready. Generating the literature review...');
-      await startReviewGeneration();
-    }
+    showToast('PDFs uploaded successfully. Click "Generate Review from Uploaded PDFs" when ready.');
   } catch (err) {
     console.error(err);
     showToast('Error parsing PDF documents: ' + err.message, 'error');
@@ -317,14 +315,19 @@ function switchTab(tabId) {
 }
 
 // Full Literature Review Pipeline Trigger
-async function startReviewGeneration() {
+async function startReviewGeneration(forcedMode) {
+  const currentMode = forcedMode || activeMode || 'online';
+  if (currentMode !== activeMode) {
+    setSourceMode(currentMode);
+  }
+
   const topic = document.getElementById('input-topic').value.trim();
   const question = document.getElementById('input-question').value.trim();
   const startYear = parseInt(document.getElementById('input-start-year').value) || 2021;
   const endYear = parseInt(document.getElementById('input-end-year').value) || 2026;
   const numPapers = parseInt(document.getElementById('input-num-papers').value) || 20;
 
-  if (activeMode === 'pdf' && uploadedPdfs.length === 0) {
+  if (currentMode === 'pdf' && uploadedPdfs.length === 0) {
     await loadExistingUploadedPdfs();
     if (uploadedPdfs.length === 0) {
       showToast('Please upload at least one PDF research paper first.', 'error');
@@ -339,7 +342,9 @@ async function startReviewGeneration() {
 
   // Show progress card and animate steps
   const progressCard = document.getElementById('progress-card');
-  const generateBtn = document.getElementById('generate-btn');
+  const generateBtn = currentMode === 'pdf'
+    ? document.getElementById('generate-pdf-btn')
+    : document.getElementById('generate-online-btn');
   if (progressCard) progressCard.style.display = 'block';
   if (generateBtn) {
     generateBtn.disabled = true;
@@ -356,8 +361,14 @@ async function startReviewGeneration() {
       start_year: startYear,
       end_year: endYear,
       num_papers: numPapers,
-      mode: activeMode,
-      uploaded_papers: activeMode === 'pdf' ? uploadedPdfs : null
+      mode: currentMode,
+      uploaded_papers: currentMode === 'pdf'
+        ? uploadedPdfs.map(paper => {
+          const metadata = { ...paper };
+          delete metadata.extracted_text;
+          return metadata;
+        })
+        : null
     };
 
     const res = await fetch('/api/generate-full-review', {
@@ -372,7 +383,7 @@ async function startReviewGeneration() {
     }
     const data = await res.json();
     fullReviewState = data;
-    if (activeMode === 'pdf' && data.meta) {
+    if (currentMode === 'pdf' && data.meta) {
       document.getElementById('input-topic').value = data.meta.topic;
       document.getElementById('input-question').value = data.meta.research_question;
     }
@@ -390,7 +401,7 @@ async function startReviewGeneration() {
   } finally {
     if (generateBtn) {
       generateBtn.disabled = false;
-      if (activeMode === 'pdf') {
+      if (currentMode === 'pdf') {
         generateBtn.innerHTML = `<span>📑</span> <span>Generate Review from Uploaded PDFs</span>`;
       } else {
         generateBtn.innerHTML = `<span>✨</span> <span>Generate Literature Review</span>`;
@@ -471,6 +482,11 @@ function renderPapersList(papers) {
       <div class="paper-authors">
         ${(p.authors || []).slice(0, 4).map(a => escapeHtml(a)).join(', ') || 'Author details unavailable'}${(p.authors || []).length > 4 ? ' et al.' : ''} (${p.year || 'Year unavailable'})
       </div>
+
+      <div class="paper-evidence-scope">${escapeHtml(p.text_extraction_scope || (p.abstract ? 'Abstract only' : 'Metadata only'))}</div>
+      ${(p.text_extraction_warnings || []).length ? `
+        <p class="paper-extraction-warning" role="note">${escapeHtml(p.text_extraction_warnings.join(' '))}</p>
+      ` : ''}
 
       <p class="paper-abstract" id="abstract-text-${idx}">
         ${escapeHtml(p.abstract || 'Abstract not available from the selected source.')}

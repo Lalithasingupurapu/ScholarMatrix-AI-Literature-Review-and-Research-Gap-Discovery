@@ -1,126 +1,196 @@
 # ScholarMatrix AI
 
-ScholarMatrix AI creates a literature review from the papers selected for the current run. Choose live online search or upload PDFs, enter a topic and research question, and generate a paper list, comparative matrix, paper-by-paper research gaps, and a Markdown report.
+ScholarMatrix AI is an autonomous academic literature review and research synthesis engine. Ingest literature via live Google Scholar search (powered by Serper API) and arXiv, or upload your own research-paper PDFs. ScholarMatrix AI extracts full-text methodology and findings, compares papers in a structured literature matrix, uncovers evidence-backed research gaps, and compiles a comprehensive thematic systematic literature review report.
+
+---
 
 ## Interface
 
-![ScholarMatrix AI interface](assets/interface.png)
+### 1. Research Control Panel & Discovery
+![ScholarMatrix AI Control Panel](assets/interface_control_panel.jpg)
 
-## Features
+### 2. Extracted Research Papers & Findings
+![ScholarMatrix AI Research Papers](assets/interface_papers_list.jpg)
 
-- **Choose the source for each review:** search OpenAlex and arXiv, or upload research-paper PDFs.
-- **Set review inputs:** research topic, research question, publication year range, and target paper count.
-- **Review paper metadata and abstracts:** inspect titles, available authors, year, venue, citation count when provided by the source, abstract, and manuscript link.
-- **Compare papers in a literature matrix:** extract each paper's research focus, methodology, named datasets and benchmarks, stated metrics and comparisons, results, limitations, and future work from its available text.
-- **Analyze research gaps paper by paper:** each selected paper gets a separate entry. The app reports an explicit limitation/future-work statement when found, and says when available text does not support a reliable gap.
-- **Generate a Markdown literature-review report:** the report and matrix are built from the papers selected for that generation.
-- **Export results:** download the matrix as CSV or the report as Markdown; copy the matrix as Markdown from the matrix view.
+---
 
-The app avoids substituting shared example datasets, metrics, results, or research gaps when a paper does not report them. Missing facts are labeled as unavailable or not reported.
+## Key Features
 
-## Technology stack
+- **Multi-Source Scholarly Retrieval:** Live Google Scholar indexing via Serper API, supplemented with arXiv, or direct local PDF manuscript uploads.
+- **Full-Text PDF Extraction:** Automatically resolves and downloads open-access manuscripts, parsing full-text content across all pages (methods, datasets, metrics, limitations) rather than relying solely on abstracts.
+- **Comparative Literature-Review Matrix:** Analyzes and tabulates research focus, proposed methodology, benchmark datasets, empirical metrics, key results, and identified limitations side by side across 6 standardized columns.
+- **Evidence-Grounded Research Gaps:** Extracts verbatim limitation and future-work quotes directly from each paper's text with explicit citation attribution.
+- **Thematic Systematic Review Report:** Performs true cross-study meta-synthesis:
+  1. *Executive Synthesis & State of the Art* (citation impact, landmark studies, field consensus)
+  2. *Methodological Taxonomy & Thematic Paradigms* (groups papers into architectural, benchmarking, and applied archetypes)
+  3. *Empirical Evaluation & Benchmark Landscape* (common benchmark corpora, standard metrics, and quantitative trends)
+  4. *Cross-Study Limitation Meta-Analysis* (generalizability, computational overhead, and boundary sensitivity)
+  5. *Synthesis on the Core Research Question* (substantiated progress and remaining open challenges)
+  6. *Strategic Research Agenda & 4-Point Roadmap* (concrete directions for future research)
+  7. *Systematic Corpus Bibliography* (formal academic references with manuscript links)
+- **Zero Hallucination Guarantee:** Uses deterministic rule-based linguistic extraction and verified gazetteers—unreported items are labeled as not reported rather than synthetically hallucinated.
+- **Direct Exports:** Download the comparative matrix as CSV, copy as Markdown table, or download the full synthesis report as Markdown (`.md`).
+
+---
+
+## Technology Stack
 
 | Area | Technologies |
 |---|---|
-| Backend language | Python |
-| Web API and server | FastAPI, Uvicorn |
-| Online paper sources | OpenAlex Works API and arXiv API |
-| Online requests | Python standard-library `urllib` |
-| PDF processing | `pypdf` |
-| Frontend | HTML, CSS, vanilla JavaScript |
-| Markdown rendering | Marked.js |
-| Typography | Inter from Google Fonts |
-| Upload handling | FastAPI multipart support via `python-multipart` |
+| **Backend Language** | Python 3.10+ |
+| **Web API & Framework** | FastAPI, Uvicorn |
+| **Scholarly Search Engines** | Google Scholar via Serper API (`https://google.serper.dev/scholar`), arXiv API |
+| **HTTP & PDF Ingestion** | Python standard-library `urllib`, `concurrent.futures.ThreadPoolExecutor` |
+| **PDF Text Parsing** | `pypdf` (multi-page selectable text extraction) |
+| **Upload Processing** | FastAPI multipart streaming via `python-multipart` |
+| **Frontend Framework** | Pure Vanilla JavaScript (ES6+), HTML5, CSS3 (No Node.js build step needed) |
+| **Markdown Rendering** | Marked.js |
+| **Typography** | Inter from Google Fonts |
 
 Python dependencies are listed in [`requirements.txt`](requirements.txt).
 
-## Requirements
+---
 
-- Python with `pip`
-- Internet access for live online paper search and CDN-hosted frontend assets
+## Local Development Setup
 
-## Run locally
+### 1. Clone & Set Up Virtual Environment
 
-From the project directory, create and activate a virtual environment in PowerShell, then install dependencies:
-
+In Windows PowerShell:
 ```powershell
+git clone <your-repository-url>
+cd FSI_Main_project
+
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-Start the app:
+In Linux / macOS:
+```bash
+git clone <your-repository-url>
+cd FSI_Main_project
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Configure Serper API Key
+
+Create a `.env` file in the project root:
+```env
+SERPER_API_KEY=your_serper_api_key_here
+```
+*(The `.env` file is git-ignored by `.gitignore` to prevent exposing your secret key).*
+
+### 3. Start the Application
 
 ```powershell
 python run.py
 ```
+This automatically starts the local FastAPI server and launches your default browser at **[http://127.0.0.1:8000](http://127.0.0.1:8000)**.
 
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The runner starts the local FastAPI server and attempts to open the browser.
-
-Alternatively, run Uvicorn directly:
-
+Alternatively, launch Uvicorn directly:
 ```powershell
 python -m uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-## Using the application
+---
 
-1. Select **Live Online Search** or **Upload PDF Files**.
-2. Enter a research topic and question, and set the year range and paper count.
-3. For PDF mode, upload or select the PDFs to include.
-4. Use **Clear & Delete** to remove all uploaded PDFs from the app's local uploads folder and reset the current PDF selection.
-5. Click **Generate Literature Review**. The generated outputs use the papers selected for that run.
-6. Browse the papers, matrix, paper-specific gaps, and report. Use the CSV and Markdown export options as needed.
+## Running Unit Tests
 
-## Evidence and extraction notes
+Run the comprehensive test suite (15 tests covering parsing, Serper integration, deduplication, and report generation):
+```powershell
+python -m unittest discover tests
+```
 
-- Online search results use the metadata and abstract returned by OpenAlex or arXiv. Full text may not be available for online results; in that case, analysis is limited to the available abstract and the UI indicates the evidence scope.
-- For uploaded PDFs, text is extracted from up to the first 100 pages. The quality of extracted information depends on whether the PDF contains machine-readable text; scanned pages may require OCR, which is not currently included.
-- Dataset names, metrics, baselines, results, limitations, and future-work statements are included only when found in the available paper text. The application does not claim that an unreported item was evaluated.
-- An online search that returns no papers reports an error instead of inserting a synthetic sample corpus.
-- Citation counts may be unavailable from a source. An unavailable count should not be interpreted as zero citations.
+---
 
-## API endpoints
+## Deployment on Render (Cloud Web Service)
+
+To deploy ScholarMatrix AI as a live public web service on [Render.com](https://render.com):
+
+### Step 1: Create a New Web Service on Render
+1. Log into your Render dashboard and click **New +** ➔ **Web Service**.
+2. Connect your GitHub repository.
+
+### Step 2: Configure Service Settings
+| Setting | Recommended Value |
+|---|---|
+| **Name** | `scholarmatrix-ai` (or your choice) |
+| **Region** | Oregon (US West) or closest to you |
+| **Branch** | `main` |
+| **Root Directory** | *(Leave empty)* |
+| **Runtime** | `Python 3` |
+| **Build Command** | `pip install -r requirements.txt` |
+| **Start Command** | `uvicorn backend.app:app --host 0.0.0.0 --port $PORT` |
+| **Instance Type** | Free |
+
+### Step 3: Add Environment Variables
+Under the **Environment Variables** tab in Render, add:
+* `SERPER_API_KEY`: `your_serper_api_key`
+* `PYTHONUNBUFFERED`: `1`
+
+### Why PDF Uploads Work Seamlessly on Render:
+* **Persistent Uploads Directory Tracking:** The repository includes [`uploads/.gitkeep`](uploads/.gitkeep) so Git tracks the `uploads` directory structure.
+* **Auto-Creation Safeguard:** `backend/app.py` automatically checks and recreates `UPLOAD_DIR` on any request before writing, preventing `FileNotFoundError` on ephemeral cloud instances.
+* **Host Binding:** `uvicorn --host 0.0.0.0 --port $PORT` binds to Render's public network interface and assigns the dynamic cloud port.
+
+---
+
+## API Endpoints
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `GET` | `/api/health` | Check service health |
-| `GET` | `/api/uploaded-pdfs` | List and parse PDFs already in the uploads directory |
-| `DELETE` | `/api/uploaded-pdfs` | Delete all PDFs stored in the uploads directory |
-| `POST` | `/api/upload-pdfs` | Upload and parse PDF files |
-| `POST` | `/api/generate-full-review` | Generate outputs from online search or selected PDFs |
-| `GET` | `/api/export/csv` | Download the latest literature matrix as CSV |
-| `GET` | `/api/export/markdown` | Download the latest report as Markdown |
+| `GET` | `/api/health` | Check service health and readiness |
+| `GET` | `/api/uploaded-pdfs` | List and parse PDF documents stored in uploads |
+| `DELETE` | `/api/uploaded-pdfs` | Delete all stored uploaded PDF files |
+| `POST` | `/api/upload-pdfs` | Upload and extract selectable text from PDF files |
+| `POST` | `/api/generate-full-review` | End-to-end literature review generation (online or PDF mode) |
+| `GET` | `/api/export/csv` | Download comparative literature matrix as CSV |
+| `GET` | `/api/export/markdown` | Download the full systematic review report as Markdown |
 
-## Project structure
+---
+
+## Project Structure
 
 ```text
 FSI_Main_project/
 ├── assets/
-│   └── interface.png
+│   ├── interface.png               # Control panel screenshot
+│   ├── interface_control_panel.jpg # Control panel & discovery screenshot
+│   └── interface_papers_list.jpg   # Paper cards & findings screenshot
 ├── backend/
-│   ├── app.py
-│   ├── config.py
+│   ├── app.py                      # FastAPI routes & orchestration
+│   ├── config.py                   # Paths, unverified SSL context & Serper API key loader
 │   └── services/
-│       ├── citation_graph.py
-│       ├── export_service.py
-│       ├── gap_analyzer.py
-│       ├── matrix_generator.py
-│       ├── paper_fetcher.py
-│       ├── pdf_parser.py
-│       └── report_generator.py
+│       ├── export_service.py       # CSV and BibTeX export generator
+│       ├── gap_analyzer.py         # Evidence-based research gap extractor
+│       ├── matrix_generator.py     # 6-column literature matrix generator
+│       ├── paper_fetcher.py        # Serper Google Scholar & arXiv discovery + PDF downloader
+│       ├── pdf_parser.py           # Multi-page selectable text PDF extractor
+│       └── report_generator.py     # Thematic systematic review report engine
 ├── frontend/
-│   ├── index.html
+│   ├── index.html                  # Main interactive workspace
 │   ├── css/
-│   │   └── style.css
+│   │   └── style.css               # Academic calm design system
 │   └── js/
-│       ├── app.js
-│       ├── gaps.js
-│       ├── graph.js
-│       ├── matrix.js
-│       └── report.js
-├── uploads/                 # Uploaded PDF storage
-├── requirements.txt
-├── run.py
-└── README.md
+│       ├── app.js                  # Application controller & state orchestrator
+│       ├── gaps.js                 # Research gaps workspace renderer
+│       ├── matrix.js               # Comparative matrix workspace renderer
+│       └── report.js               # Rendered review report & dynamic TOC renderer
+├── tests/
+│   └── test_paper_analysis.py      # Unit tests (15 test cases)
+├── uploads/                        # Local PDF manuscript storage
+│   └── .gitkeep                    # Directory preservation for Git deployment
+├── .gitignore                      # Git ignore rules (ignores .env, cache, uploaded PDFs)
+├── requirements.txt                # Python dependencies
+├── run.py                          # Cross-platform runner (local desktop & cloud host)
+└── README.md                       # Documentation
 ```
+
+---
+
+## License
+
+This project is licensed under the MIT License.

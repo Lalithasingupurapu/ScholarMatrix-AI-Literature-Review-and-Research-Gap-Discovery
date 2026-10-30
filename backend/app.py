@@ -4,6 +4,7 @@ import shutil
 from collections import Counter
 from pathlib import Path
 from typing import List, Optional
+from urllib.parse import unquote, urlparse
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -92,6 +93,30 @@ def _infer_pdf_topic(papers: List[dict]) -> str:
     return titles[0]
 
 
+def _public_paper(paper: dict) -> dict:
+    return {key: value for key, value in paper.items() if key != "extracted_text"}
+
+
+def _parse_selected_upload(paper: dict) -> Optional[dict]:
+    upload_url = paper.get("pdf_url") or paper.get("url") or ""
+    parsed_url = urlparse(upload_url)
+    prefix = "/api/uploads/"
+    if not parsed_url.path.startswith(prefix):
+        return None
+
+    filename = unquote(parsed_url.path[len(prefix):])
+    target_path = (UPLOAD_DIR / filename).resolve()
+    if (
+        not filename
+        or Path(filename).name != filename
+        or target_path.parent != UPLOAD_DIR.resolve()
+        or target_path.suffix.lower() != ".pdf"
+        or not target_path.is_file()
+    ):
+        raise HTTPException(status_code=404, detail="Uploaded PDF not found.")
+    return pdf_parser.parse_pdf(str(target_path), target_path.name)
+
+
 class FullReviewRequest(BaseModel):
     topic: str = "Retrieval-Augmented Generation (RAG)"
     research_question: str = "How can RAG reduce AI hallucinations?"
@@ -132,6 +157,7 @@ def get_uploaded_pdfs():
     """
     Returns list of already uploaded and parsed PDF papers.
     """
+    UPLOAD_DIR.mkdir(exist_ok=True, parents=True)
     pdf_files = sorted(list(UPLOAD_DIR.glob("*.pdf")), key=os.path.getmtime, reverse=True)
     parsed_papers = []
     seen_titles = set()
@@ -142,7 +168,7 @@ def get_uploaded_pdfs():
             norm_title = re.sub(r'[^a-z0-9]', '', parsed.get("title", "").lower())
             if norm_title and norm_title not in seen_titles:
                 seen_titles.add(norm_title)
-                parsed_papers.append(parsed)
+                parsed_papers.append(_public_paper(parsed))
         except Exception as e:
             print(f"[Warning] Failed to read {p_file.name}: {e}")
 
@@ -183,6 +209,7 @@ async def upload_pdfs(files: List[UploadFile] = File(...)):
     """
     Upload and parse one or more research paper PDF documents.
     """
+    UPLOAD_DIR.mkdir(exist_ok=True, parents=True)
     parsed_papers = []
 
     for file in files:
@@ -197,7 +224,7 @@ async def upload_pdfs(files: List[UploadFile] = File(...)):
                 shutil.copyfileobj(file.file, buffer)
 
             parsed = pdf_parser.parse_pdf(str(target_path), file.filename)
-            parsed_papers.append(parsed)
+            parsed_papers.append(_public_paper(parsed))
         except Exception as e:
             print(f"[Error] Failed to parse {file.filename}: {e}")
 
@@ -231,7 +258,17 @@ def generate_full_review(req: FullReviewRequest):
     # Step 1: Paper acquisition based on mode
     if req.mode == "pdf":
         if req.uploaded_papers and len(req.uploaded_papers) > 0:
-            papers.extend(req.uploaded_papers)
+            for uploaded_paper in req.uploaded_papers[:num_papers]:
+                parsed = _parse_selected_upload(uploaded_paper)
+                if parsed:
+                    papers.append(parsed)
+                elif uploaded_paper.get("extracted_text"):
+                    papers.append(uploaded_paper)
+                else:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="An uploaded paper could not be matched to a stored PDF.",
+                    )
         else:
             # Load from uploads folder
             pdf_files = sorted(list(UPLOAD_DIR.glob("*.pdf")), key=os.path.getmtime, reverse=True)
@@ -252,13 +289,19 @@ def generate_full_review(req: FullReviewRequest):
                 detail="No uploaded PDF files found. Please drop your PDF manuscripts into the upload zone first."
             )
 
-        if not topic or topic == DEFAULT_TOPIC:
-            topic = _infer_pdf_topic(papers)
-        if not question or question == DEFAULT_RESEARCH_QUESTION:
-            question = (
-                f"What methods, findings, and limitations do the uploaded papers "
-                f"report about {topic}?"
-            )
+        # In PDF mode, determine topic, research question, and year range strictly from uploaded manuscripts
+        topic = _infer_pdf_topic(papers)
+        question = (
+            f"What methods, findings, and limitations do the uploaded papers "
+            f"report about {topic}?"
+        )
+        pdf_years = [
+            p.get("year") for p in papers
+            if p.get("year") and isinstance(p.get("year"), int)
+        ]
+        if pdf_years:
+            start_year = min(pdf_years)
+            end_year = max(pdf_years)
     else:
         # Online mode (arXiv & OpenAlex)
         fetched = paper_fetcher.fetch_papers(
@@ -309,10 +352,7 @@ def generate_full_review(req: FullReviewRequest):
     latest_review_cache["gaps"] = gaps_data
     latest_review_cache["report"] = report_data
 
-    public_papers = [
-        {key: value for key, value in paper.items() if key != "extracted_text"}
-        for paper in papers
-    ]
+    public_papers = [_public_paper(paper) for paper in papers]
 
     return {
         "meta": {

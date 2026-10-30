@@ -45,11 +45,6 @@ function applyGapsFilter() {
           <p class="gap-analysis-text">${escapeHtml(gap.research_gap || gap.description || '')}</p>
         </div>
 
-        <div class="gap-bottleneck-row">
-          <span class="bottleneck-tag">Evidence status:</span>
-          <span class="bottleneck-text">${escapeHtml(gap.gap_basis || '')}</span>
-        </div>
-
         ${evidence ? `
           <div class="gap-evidence-box">
             <div class="evidence-title">

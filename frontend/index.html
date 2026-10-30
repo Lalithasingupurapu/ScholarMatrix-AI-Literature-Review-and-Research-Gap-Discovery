@@ -66,7 +66,7 @@
         <!-- Source Mode Switcher -->
         <div class="mode-tabs">
           <button class="mode-tab active" data-mode="online" onclick="setSourceMode('online')">
-            🌐 Live Online Search (arXiv & OpenAlex)
+            🌐 Live Online Search (Google Scholar & arXiv)
           </button>
           <button class="mode-tab" data-mode="pdf" onclick="setSourceMode('pdf')">
             📂 Upload PDF Files
@@ -164,7 +164,7 @@
             </div>
 
             <div style="min-width: 280px;">
-              <button id="generate-online-btn" class="cta-btn" onclick="startReviewGeneration()">
+              <button id="generate-online-btn" class="cta-btn" onclick="startReviewGeneration('online')">
                 <span>✨</span>
                 <span>Generate Literature Review</span>
               </button>
@@ -190,7 +190,7 @@
 
           <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 20px;">
             <div style="min-width: 320px;">
-              <button id="generate-pdf-btn" class="cta-btn" onclick="startReviewGeneration()">
+              <button id="generate-pdf-btn" class="cta-btn" onclick="startReviewGeneration('pdf')">
                 <span>📑</span>
                 <span>Generate Review from Uploaded PDFs</span>
               </button>
@@ -289,7 +289,6 @@
               </div>
               <div style="display: flex; align-items: center; gap: 10px;">
                 <span id="matrix-count-badge" style="font-size: 0.85rem; color: var(--text-muted); font-weight: 600;">20 papers</span>
-                <button class="pill-button" onclick="expandAllMatrixRows()">↔ Expand / Collapse All</button>
                 <button class="pill-button" onclick="copyMatrixMarkdown()">📋 Copy Markdown Table</button>
                 <button class="pill-button" onclick="downloadMatrixCsv()">📊 Download CSV</button>
               </div>
@@ -302,10 +301,9 @@
                     <th style="cursor: pointer; min-width: 260px;" onclick="sortMatrixBy('title')">Paper & Authors ⇕</th>
                     <th style="min-width: 170px;">Research Focus</th>
                     <th style="cursor: pointer; min-width: 320px;" onclick="sortMatrixBy('methodology')">Proposed Methodology / Architecture ⇕</th>
-                    <th style="min-width: 220px;">Datasets & Benchmarks</th>
+                    <th style="min-width: 220px;">Datasets</th>
                     <th style="min-width: 260px;">Key Results (Quant & Qual)</th>
                     <th style="min-width: 260px;">Identified Limitations & Bottlenecks</th>
-                    <th style="min-width: 120px; text-align: center;">Deep Dive</th>
                   </tr>
                 </thead>
                 <tbody id="matrix-table-body">
@@ -371,9 +369,9 @@
   </main>
 
   <!-- Script Imports -->
-  <script src="/static/js/matrix.js?v=3"></script>
-  <script src="/static/js/gaps.js?v=3"></script>
+  <script src="/static/js/matrix.js?v=4"></script>
+  <script src="/static/js/gaps.js?v=4"></script>
   <script src="/static/js/report.js?v=2"></script>
-  <script src="/static/js/app.js?v=5"></script>
+  <script src="/static/js/app.js?v=7"></script>
 </body>
 </html>

@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import threading
@@ -13,16 +14,23 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def open_browser(port):
     time.sleep(1.2)
-    webbrowser.open(f"http://127.0.0.1:{port}")
+    try:
+        webbrowser.open(f"http://127.0.0.1:{port}")
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":
-    port = 8000
+    is_cloud = bool(os.environ.get("RENDER") or os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0" if is_cloud else "127.0.0.1"
+
     print("================================================================")
-    print(f">> Launching ScholarMatrix AI Workbench on http://127.0.0.1:{port}")
+    print(f">> Launching ScholarMatrix AI Workbench on http://{host}:{port}")
     print("================================================================")
 
-    # Launch browser automatically
-    threading.Thread(target=open_browser, args=(port,), daemon=True).start()
+    if not is_cloud:
+        # Launch browser automatically on local desktop
+        threading.Thread(target=open_browser, args=(port,), daemon=True).start()
 
-    uvicorn.run("backend.app:app", host="127.0.0.1", port=port, reload=True)
+    uvicorn.run("backend.app:app", host=host, port=port, reload=not is_cloud)
